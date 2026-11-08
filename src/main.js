@@ -10,6 +10,7 @@ import { buildKit } from './accessories.js';
 import { createGasWorld } from './gasworld.js';
 import { createUI } from './ui.js';
 import { createDemo } from './demo.js';
+import { createZoom } from './zoom.js';
 
 const Q = new URLSearchParams(location.search);
 const qn = (k, d) => (Q.has(k) ? +Q.get(k) : d);
@@ -123,6 +124,7 @@ window.__sim = sim;
 const ui = showUI ? createUI({ fw, world, kit, sim, audio }) : { update() {} };
 sim.ui = ui;
 sim.demo = createDemo(sim);
+sim.zoom = createZoom(sim);
 if (Q.get('demo') === '1') document.addEventListener('pointerdown', () => { audio.unlock(); if (!sim.demo.running) sim.demo.start(); }, { once: true });
 if (Q.get('state')) sim.jump(Q.get('state'));
 else fw.power(true);
