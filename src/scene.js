@@ -20,6 +20,8 @@ import { VerticalBlurShader } from 'three/addons/shaders/VerticalBlurShader.js';
 import { StarPass, GradePass, invertToneGray } from './scene_post.js';
 const srgb8ToLin = (v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
 import { buildEnvScene, concreteTextures, plantBackdropTexture } from './scene_env.js';
+import { buildScenery } from './scene_env_sets.js';
+import { disposeTree } from './scene_env_kit.js';
 
 const Q = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
 
@@ -28,7 +30,7 @@ const MODES = {
   estudio: {
     w: 0, bgCenter: 0xff, bgEdge: 0xfc,                 // sRGB 8 bits finais (estúdio: fundo fora do tone mapping = branco puro)
     keyDir: [-0.78, 0.72, 0.55], keyColor: [1.0, 0.975, 0.94], keyI: 1.45,
-    exposure: 1.0, envI: 0.9, shadowOpacity: 0.16, contactOpacity: 0.62, fog: 0.0, shadowR: 14,
+    exposure: 1.0, envI: 0.9, shadowOpacity: 0.05, contactOpacity: 0.62, fog: 0.0, shadowR: 14,
     fogColor: [0.05, 0.058, 0.066], vignette: 0.0, floor: 0, bloom: 0.26,
   },
   campo: {
@@ -142,6 +144,9 @@ export function createStage({ canvas, quality = 'high' } = {}) {
   key.shadow.blurSamples = high ? 16 : 8;
   const sc = key.shadow.camera; sc.near = 0.05; sc.far = 4;
   stageGroup.add(key, key.target);
+  // luz auxiliar (refletor/lanterna dos cenários). Sempre presente (intensidade 0) → trocar de cenário não recompila shaders.
+  const aux = new THREE.SpotLight(0xffffff, 0, 8, 0.5, 0.6, 1.6);
+  stageGroup.add(aux, aux.target);
 
   // ------------------------------------------------------------ piso: shadow catcher (estúdio) + concreto (campo)
   const catcherMat = new THREE.ShadowMaterial({ opacity: 0.16, color: 0x1a1612, depthWrite: false });
@@ -429,10 +434,73 @@ export function createStage({ canvas, quality = 'high' } = {}) {
     applySize();
   }
 
+  // ------------------------------------------------------------ cenários (setScenery) — fade, construção preguiçosa, dispose
+  let scn = null, scnId = 'manual', scnPending = null, fade = 0;
+  const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector2();
+  function bakeScenery(set) {
+    const es = new THREE.Scene();
+    const L = set.look, B = set.bake || {};
+    es.fog = new THREE.FogExp2(new THREE.Color(...L.fogColor), L.fog);
+    const parent = set.group.parent; es.add(set.group); set.group.position.y = -0.07; // cubo do PMREM ~7 cm acima do apoio
+    const hemi = new THREE.HemisphereLight(new THREE.Color(...B.hemi[0]), new THREE.Color(...B.hemi[1]), B.hemi[2]); es.add(hemi);
+    const sun = new THREE.DirectionalLight(new THREE.Color(...L.keyColor), B.sun ?? L.keyI); sun.position.set(...L.keyDir); es.add(sun);
+    for (const e of B.extras || []) es.add(e);
+    const old = envRT;
+    envRT = pmrem.fromScene(es, 0.02, 0.05, 140);
+    scene.environment = envRT.texture; if (old) old.dispose(); envBlend = -1;
+    set.group.position.y = 0; parent.add(set.group);
+    for (const e of B.extras || []) { e.geometry?.dispose(); e.material?.dispose(); }
+  }
+  function applyLook(L) {
+    key.userData.dir = new THREE.Vector3(...L.keyDir).normalize();
+    key.color.setRGB(...L.keyColor); key.intensity = L.keyI;
+    if (high) key.shadow.radius = L.shadowR ?? 12;
+    renderer.toneMappingExposure = L.exposure; scene.environmentIntensity = L.envI;
+    scene.fog.density = L.fog; scene.fog.color.setRGB(...L.fogColor);
+    csMat.opacity = L.contactOpacity; bloom.strength = L.bloom; grade.uniforms.vignette.value = L.vignette;
+    catcher.visible = false; floor.visible = false; backdrop.visible = false; plant.visible = false;
+    bgUniforms.bgAlpha.value = 1; bgUniforms.cA.value.setRGB(...L.fogColor); bgUniforms.cB.value.setRGB(...L.fogColor).multiplyScalar(0.8);
+    if (L.spot) {
+      aux.position.set(...L.spot.pos); aux.target.position.set(...L.spot.target); aux.target.updateMatrixWorld();
+      aux.color.setRGB(...L.spot.color); aux.intensity = L.spot.intensity; aux.angle = L.spot.angle; aux.penumbra = L.spot.penumbra; aux.distance = L.spot.distance;
+    } else aux.intensity = 0;
+  }
+  function swapScenery(id) {
+    if (scn) { stageGroup.remove(scn.group); disposeTree(scn.group); scn = null; }
+    scnId = id;
+    const set = id && id !== 'manual' && id !== 'estudio' ? buildScenery(id) : null;
+    if (!set) {                                           // estúdio (bancada de testes / modo manual)
+      aux.intensity = 0; from = null; to = MODES[modeName] || MODES.estudio; tMode = 1; envBlend = -1; applyMode(1);
+      return;
+    }
+    scn = set; stageGroup.add(set.group);
+    applyLook(set.look);
+    set.update(0);
+    bakeScenery(set);
+  }
+  /** troca o ambiente 3D conforme o cenário (ids do gasworld); 'manual' = estúdio */
+  function setScenery(id) {
+    const want = id || 'manual';
+    if (want === (scnPending ?? scnId)) return;
+    scnPending = want;
+  }
+
   function render(dt = 0) {
     frameNo++;
     if (initialFrame) initialFrame = false;
-    if (tMode < 1) { tMode = Math.min(1, tMode + (dt || 0.016) / 1.4); applyMode(tMode); if (tMode >= 1) from = null; }
+    if (tMode < 1 && !scn) { tMode = Math.min(1, tMode + (dt || 0.016) / 1.4); applyMode(tMode); if (tMode >= 1) from = null; }
+    // transição de cenário: escurece ~0,4 s → troca (constrói o novo, descarta o antigo, re-assa o PMREM) → clareia ~0,6 s
+    const fdt = Math.min(0.05, dt || 0.016);
+    if (scnPending !== null) {
+      fade = initialFrame || frameNo < 3 ? 1 : Math.min(1, fade + fdt / 0.4);
+      if (fade >= 1) { const id = scnPending; scnPending = null; swapScenery(id); }
+    } else if (fade > 0) fade = Math.max(0, fade - fdt / 0.6);
+    grade.uniforms.fade.value = fade * fade * (3 - 2 * fade);
+    if (scn) {
+      scn.update(dt || 0);
+      const sc2 = renderer.getDrawingBufferSize(tmpV2).y * camera.projectionMatrix.elements[5] * 0.5;
+      for (const p of scn.particles) p.userData.particles.scale.value = sc2;
+    }
     if (frameNo % 30 === 1) fitShadows();
     // luz-chave posicionada ao longo da direção do modo, a partir do centro das sombras
     const d = key.userData.dir || new THREE.Vector3(0, 1, 0);
@@ -445,7 +513,8 @@ export function createStage({ canvas, quality = 'high' } = {}) {
   }
 
   return {
-    renderer, scene, camera, render, resize, setMode, floorY: 0,
+    renderer, scene, camera, render, resize, setMode, setScenery, floorY: 0,
+    get scenery() { return scnId; },
     composer, passes: { bloom, star, gtao, output, grade, fxaa }, key,
     get mode() { return modeName; },
     setQualityAO(on) { if (gtao) gtao.enabled = !!on; },

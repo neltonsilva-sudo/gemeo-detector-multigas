@@ -136,6 +136,8 @@ addEventListener('resize', resize); resize();
 let last = performance.now(), simT = 0, frames = 0, fpsT = 0, first = true;
 const inletWorld = new THREE.Vector3();
 let lastScenery = Q.get('scenario') ? null : world.scenario;
+// clicar num cenário (mesmo o já ativo, ex.: 'Ar limpo' na abertura) aplica o ambiente 3D correspondente
+document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('.gx-scen')) setTimeout(() => { lastScenery = null; }, 0); });
 function frame(now) {
   requestAnimationFrame(frame);
   let dt = Math.min(0.05, (now - last) / 1000); last = now;

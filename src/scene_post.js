@@ -208,12 +208,12 @@ export class StarPass extends Pass {
 export class GradePass extends Pass {
   constructor() {
     super();
-    this.uniforms = { tDiffuse: { value: null }, vignette: { value: 0 }, aspect: { value: 1 }, time: { value: 0 }, grain: { value: 0 } };
+    this.uniforms = { tDiffuse: { value: null }, vignette: { value: 0 }, aspect: { value: 1 }, time: { value: 0 }, grain: { value: 0 }, fade: { value: 0 }, fadeColor: { value: new THREE.Color(0.02, 0.022, 0.025) } };
     this.material = new THREE.ShaderMaterial({
       uniforms: this.uniforms,
       vertexShader: VS,
       fragmentShader: /* glsl */`
-        uniform sampler2D tDiffuse; uniform float vignette, aspect, time, grain; varying vec2 vUv;
+        uniform sampler2D tDiffuse; uniform float vignette, aspect, time, grain, fade; uniform vec3 fadeColor; varying vec2 vUv;
         float h12(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
         void main(){
           vec4 c = texture2D(tDiffuse, vUv);
@@ -223,6 +223,7 @@ export class GradePass extends Pass {
           vec2 fc = gl_FragCoord.xy + fract(time * 7.13) * 37.0;
           float n = h12(fc) + h12(fc + 17.7) - 1.0;           // triangular [-1,1]
           c.rgb += n * (1.0 / 255.0) + n * grain;
+          c.rgb = mix(c.rgb, fadeColor, fade);                // transição entre cenários
           gl_FragColor = vec4(c.rgb, 1.0);
         }`,
       depthTest: false, depthWrite: false,
