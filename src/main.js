@@ -11,6 +11,7 @@ import { createGasWorld } from './gasworld.js';
 import { createUI } from './ui.js';
 import { createDemo } from './demo.js';
 import { createZoom } from './zoom.js';
+import { buildTripod, TRIPOD_H } from './tripod.js';
 
 const Q = new URLSearchParams(location.search);
 const qn = (k, d) => (Q.has(k) ? +Q.get(k) : d);
@@ -28,6 +29,11 @@ const device = buildDevice({ lcdTexture: lcd.texture });
 scene.add(device.group);
 const kit = buildKit();
 scene.add(kit.group);
+// tripé: aparece nos ambientes por cenário (o estúdio/manual mantém o aparelho apoiado na mesa); o kit desce ao piso
+const tripod = buildTripod(); tripod.visible = false; scene.add(tripod);
+// ambientes já ajustados para o tripé (piso em -TRIPOD_H); os demais seguem com o aparelho apoiado até serem refeitos
+const TRIPOD_READY = new Set(['co-motor', 'deficiencia-o2']);
+function applyTripod(id) { const on = TRIPOD_READY.has(id); tripod.visible = on; kit.group.position.y = on ? -TRIPOD_H : 0; }
 const fw = createFirmware();
 const audio = createAudio();
 const world = createGasWorld();
@@ -147,7 +153,7 @@ function frame(now) {
   device.inletAnchor.getWorldPosition(inletWorld);
   kit.update(sdt, { inletWorld, time: simT });
   // ambiente 3D acompanha o cenário escolhido (a carga inicial fica no estúdio, exceto com ?scenario=)
-  if (world.scenario !== lastScenery) { lastScenery = world.scenario; stage.setScenery?.(lastScenery); }
+  if (world.scenario !== lastScenery) { lastScenery = world.scenario; stage.setScenery?.(lastScenery); applyTripod(lastScenery); }
   const gas = world.sample(simT, { kit });
   const blocked = inletCovered || (kit.state.hoseAttached && !kit.state.valveOpen) || !!world.blocked;
   const out = fw.update(sdt, gas, { inletBlocked: blocked, hoseLen: kit.state.hoseAttached ? (kit.state.hoseLen || 1) : (world.hoseLen || 0) });
