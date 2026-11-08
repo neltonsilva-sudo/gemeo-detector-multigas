@@ -96,35 +96,40 @@ export function makeModelLabel() {
   return { texture: t, w: W, h: H, cx: 0, cy: (74.6 + 82.8) / 2 };
 }
 
-// ---------------- etiqueta traseira ----------------
+// ---------------- etiqueta traseira (34 × 37 mm, abaixo do clipe) ----------------
 export function makeBackLabel() {
-  const PX = 22, W = 48, H = 80;
+  const PX = 32, W = 34, H = 37;
   const c = document.createElement('canvas'); c.width = W * PX; c.height = H * PX;
   const g = c.getContext('2d');
-  const grd = g.createLinearGradient(0, 0, c.width, c.height);
-  grd.addColorStop(0, '#e9ebe8'); grd.addColorStop(0.5, '#f6f7f4'); grd.addColorStop(1, '#dfe2de');
-  g.fillStyle = grd; g.fillRect(0, 0, c.width, c.height);
-  g.fillStyle = '#1a1a1a';
-  const T = (txt, x, y, size, w = 400, align = 'left') => { g.font = `${w} ${size * PX}px "Helvetica Neue", Arial, sans-serif`; g.textAlign = align; g.fillText(txt, x * PX, y * PX); };
-  g.fillStyle = '#f2c200'; g.fillRect(0, 0, c.width, 6.5 * PX);
+  g.fillStyle = '#f7f7f4'; g.fillRect(0, 0, c.width, c.height);
+  const T = (txt, x, y, size, w = 400, align = 'left', style = '') => { g.font = `${style} ${w} ${size * PX}px "Helvetica Neue", Arial, sans-serif`; g.textAlign = align; g.fillText(txt, x * PX, y * PX); };
+  // faixa preta do topo com o modelo (sem logotipo do fabricante: losango genérico)
+  g.fillStyle = '#111'; g.fillRect(0, 0, c.width, 4.6 * PX);
+  g.strokeStyle = '#fff'; g.lineWidth = 0.3 * PX;
+  g.beginPath(); g.moveTo(3 * PX, 0.8 * PX); g.lineTo(4.6 * PX, 2.3 * PX); g.lineTo(3 * PX, 3.8 * PX); g.lineTo(1.4 * PX, 2.3 * PX); g.closePath(); g.stroke();
+  g.fillStyle = '#fff'; T('GasAlert', 7.6, 3.25, 2.2, 400, 'left', 'italic'); g.font = `italic 800 ${2.3 * PX}px "Helvetica Neue", Arial`;
+  g.textAlign = 'left'; g.fillText('Max XT II', (7.6 + 9.0) * PX, 3.25 * PX);
   g.fillStyle = '#111';
-  T('DETECTOR MULTIGÁS COM BOMBA', 24, 4.4, 2.6, 800, 'center');
-  T('H₂S · CO · O₂ · LEL', 24, 11, 2.4, 700, 'center');
-  const lines = ['Simulador didático — modelo genérico', 'Bateria: Li-ion recarregável 3,7 V', 'Faixa de temperatura: -20 °C a +50 °C',
-    'Umidade: 10–100 % UR (sem condensação)', 'Bomba: ≥ 0,25 L/min — mangueira até 30 m', 'Calibrar a cada 180 dias. Teste de resposta',
-    '(bump) antes do uso diário.', 'Não abrir em atmosfera explosiva.', 'Carregar somente em área não classificada.'];
-  lines.forEach((l, i) => T(l, 3, 18 + i * 3.6, 2.0, 400));
-  // aviso
-  g.strokeStyle = '#111'; g.lineWidth = 0.5 * PX; g.beginPath();
-  g.moveTo(8 * PX, 53 * PX); g.lineTo(13 * PX, 62 * PX); g.lineTo(3 * PX, 62 * PX); g.closePath(); g.stroke();
-  T('!', 8, 61, 6, 800, 'center');
-  T('ATENÇÃO: leia o manual', 16, 57, 2.2, 700); T('antes de operar.', 16, 60.5, 2.2, 400);
-  // código de barras
-  let x = 6; let s = 12345;
+  T('Detector multigás com bomba — modelo genérico de simulação', 1.2, 6.6, 1.05, 500);
+  const lines = ['Intrinsecamente seguro  Ex ia IIC T4 Ga', 'Classe I Div. 1 Grupos A,B,C,D T4', '-20 °C ≤ Ta ≤ +50 °C   3,7 V Li-ion',
+    'AVISO: carregar somente em área não', 'classificada. Leia o manual antes de usar.', 'Substituição de componentes pode', 'comprometer a segurança intrínseca.'];
+  lines.forEach((l, i) => T(l, 9.4, 9.0 + i * 1.75, 1.08, 400));
+  // selos genéricos (círculos/losangos)
+  g.lineWidth = 0.22 * PX; g.strokeStyle = '#111';
+  const circ = (x, y, r, t) => { g.beginPath(); g.arc(x * PX, y * PX, r * PX, 0, 7); g.stroke(); T(t, x, y + 0.45, 1.15, 800, 'center'); };
+  circ(4.4, 10.2, 2.4, 'SP'); circ(4.4, 16.0, 2.2, 'IS');
+  g.beginPath(); g.moveTo(4.4 * PX, 19.4 * PX); g.lineTo(6.8 * PX, 21.8 * PX); g.lineTo(4.4 * PX, 24.2 * PX); g.lineTo(2.0 * PX, 21.8 * PX); g.closePath(); g.stroke();
+  T('Ex', 4.4, 22.3, 1.2, 800, 'center');
+  circ(30.0, 23.0, 1.9, '10');
+  // triângulo de aviso
+  g.beginPath(); g.moveTo(25.5 * PX, 19.6 * PX); g.lineTo(27.9 * PX, 23.8 * PX); g.lineTo(23.1 * PX, 23.8 * PX); g.closePath(); g.stroke();
+  T('!', 25.5, 23.4, 2.6, 800, 'center');
+  // códigos de barras + nº de série
+  let s = 777;
   const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
-  g.fillStyle = '#111';
-  while (x < 42) { const w = 0.25 + rnd() * 0.6; if (rnd() > 0.4) g.fillRect(x * PX, 66 * PX, w * PX, 8 * PX); x += w + 0.2; }
-  T('SN  MA218-' + '0472613', 24, 77.3, 2.0, 500, 'center');
+  const bars = (x0, x1, y, h) => { let x = x0; while (x < x1) { const w = 0.12 + rnd() * 0.32; if (rnd() > 0.38) g.fillRect(x * PX, y * PX, w * PX, h * PX); x += w + 0.1; } };
+  T('M:  GA-SIM-XT2-0000', 2.0, 27.0, 1.05, 500); bars(2.0, 31.5, 27.6, 2.6);
+  T('S/N: MA218-0472613', 2.0, 32.4, 1.05, 500); bars(2.0, 31.5, 33.0, 2.6);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   return t;
 }

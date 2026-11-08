@@ -135,6 +135,7 @@ function resize() { stage.resize(innerWidth, innerHeight); }
 addEventListener('resize', resize); resize();
 let last = performance.now(), simT = 0, frames = 0, fpsT = 0, first = true;
 const inletWorld = new THREE.Vector3();
+let lastScenery = Q.get('scenario') ? null : world.scenario;
 function frame(now) {
   requestAnimationFrame(frame);
   let dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -143,6 +144,8 @@ function frame(now) {
   simT += sdt;
   device.inletAnchor.getWorldPosition(inletWorld);
   kit.update(sdt, { inletWorld, time: simT });
+  // ambiente 3D acompanha o cenário escolhido (a carga inicial fica no estúdio, exceto com ?scenario=)
+  if (world.scenario !== lastScenery) { lastScenery = world.scenario; stage.setScenery?.(lastScenery); }
   const gas = world.sample(simT, { kit });
   const blocked = inletCovered || (kit.state.hoseAttached && !kit.state.valveOpen) || !!world.blocked;
   const out = fw.update(sdt, gas, { inletBlocked: blocked, hoseLen: kit.state.hoseAttached ? (kit.state.hoseLen || 1) : (world.hoseLen || 0) });

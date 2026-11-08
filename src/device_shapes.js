@@ -15,7 +15,11 @@ export const D = {
   screw: [0, 3.7],
   win: { yc: 101.6, hy: 21.2, zc: 5.2, hz: 12.2, r: 5.5 },
   lens: { hx: 24.4, y0: 123.2, z0: -12.0 },
-  inlet: { y: 13.0, z: -5.5 },
+  inlet: { x: 30.0, z: -16.5, y0: 79, y1: 124, r: 7.0 },   // bojo vertical da bomba (canto sup. dir. visto de frente)
+  filter: [30.0, 95.0], filterScrew: [30.0, 80.5],
+  backScrews: [[-25.5, 121], [-25.5, 58], [-25.5, 30], [-21.5, 7.5]],
+  charge: { x: 3, y: 13.5, hx: 7.6, hy: 7.0 },
+  clipX: 3,
 };
 
 const hwAt = (y) => mix(D.hwLo, D.hwUp, smoothstep(55, 73, y));
@@ -58,12 +62,18 @@ export function boot(x, y, z) {
     }
     d = smin(d, r, 0.45);
   }
-  // ressalto traseiro do clipe
-  if (z < -14 && y > 92 && ax < 18) d = smin(d, sdRBox(x, y - 109, z - D.ZB, 12.5, 10, 2.6, 2.2), 1.2);
-  // ressalto da entrada da bomba (lateral direita)
-  if (x > 24 && y < 24 && z > -14 && z < 3) {
-    const b = sdRCylZ(z - D.inlet.z, y - D.inlet.y, x - (D.hwLo - 0.6), 4.4, 2.4, 1.2);
-    d = smin(d, b, 1.0);
+  // bojo da bomba: desce pela aresta traseira direita (vista de frente), com filtro e parafuso embutidos
+  const I = D.inlet;
+  if (x > 14 && z < -4 && y > 52) {
+    const yy = clamp(y, I.y0, I.y1);
+    const b = Math.hypot(x - I.x, y - yy, z - I.z) - I.r;
+    d = smin(d, b, 2.6);
+    if (z < -19) {
+      const f = Math.hypot(x - D.filter[0], y - D.filter[1]) - 4.95;
+      d = smax(d, -Math.max(f, z + 21.7), 0.25);
+      const sc = Math.hypot(x - D.filterScrew[0], y - D.filterScrew[1]) - 2.7;
+      d = smax(d, -Math.max(sc, z + 21.6), 0.2);
+    }
   }
   // bolsão da lente superior (3 mm de casca)
   if (y > 118) {
@@ -88,10 +98,16 @@ export function boot(x, y, z) {
     // bolsão da tampa frontal
     if (y < 60) d = smax(d, -Math.max(cover2D(x, y) - 0.55, 19.8 - z), 0.2);
   }
-  // recesso traseiro raso da etiqueta
-  if (z < -15 && y < 96 && y > 6) d = smax(d, -Math.max(sdRRect(x, y - 50, 25.2, 41.5, 4), z - (D.ZB + 0.5)), 0.4);
-  // recesso dos contatos de carga
-  if (z < -15 && y < 16) d = smax(d, -Math.max(sdRRect(x, y - 10.2, 8.4, 2.6, 1.6), z - (D.ZB + 1.2)), 0.3);
+  if (z < -14) {
+    // janela dos contatos de carga
+    const C = D.charge;
+    if (y < 24) d = smax(d, -Math.max(sdRRect(x - C.x, y - C.y, C.hx, C.hy, 1.6), z - (D.ZB + 1.8)), 0.3);
+    // escareados dos parafusos traseiros
+    for (const [sx, sy] of D.backScrews) {
+      if (Math.abs(y - sy) > 4) continue;
+      d = smax(d, -Math.max(Math.hypot(x - sx, y - sy) - 2.75, z - (D.ZB + 1.6)), 0.25);
+    }
+  }
   return d;
 }
 
@@ -178,28 +194,33 @@ export function screw(x, y, z) {
   return d;
 }
 
-// ---------------- clipe jacaré (aço inox) ----------------
+// ---------------- clipe jacaré (aço inox) — curto, terço superior/médio da traseira ----------------
 const clipZ = (y) => {
-  let z = -24.0;
-  if (y < 44) z -= ((44 - y) ** 2) * 0.0105;     // ponta levantada
-  if (y > 104) z += (y - 104) * 0.36;             // dobra até a articulação
+  let z = -23.3;
+  if (y < 76) z -= ((76 - y) ** 2) * 0.034;      // ponta levantada
+  if (y > 92) z += (y - 92) * 0.42;               // dobra até a articulação
   return z;
 };
 export function clip(x, y, z) {
-  // placa
-  const yc = 78.5, hy = 46.5;
-  let d2 = sdRRect(x, y - yc, 11.2 - smoothstep(60, 34, y) * 1.4, hy, 5.0);
-  const zc = clipZ(y) - smoothstep(4.5, 1.5, Math.abs(x)) * 0.55 * smoothstep(42, 50, y) * smoothstep(100, 92, y);
+  x -= D.clipX;
+  const yc = 83.5, hy = 14.8;
+  const W = 10.2 - smoothstep(76, 69, y) * 0.8;
+  const d2 = sdRRect(x, y - yc, W, hy, 3.0);
+  const zc = clipZ(y) - smoothstep(5, 2, Math.abs(x)) * 0.5 * smoothstep(76, 80, y) * smoothstep(92, 88, y);
   const rb = 0.35;                                   // bisel das arestas da chapa
   const dz = (Math.abs(z - zc) - 0.6 + rb) * 0.92, dx = d2 + rb;
   let d = Math.min(Math.max(dx, dz), 0) + Math.hypot(Math.max(dx, 0), Math.max(dz, 0)) - rb;
-  // articulação (barril + mola)
-  const barrel = Math.max(Math.abs(x) - 9.8, Math.hypot(y - 116.5, z + 21.6) - 2.5);
-  d = smin(d, barrel - 0.0, 0.6);
-  // orelhas da base (fixadas no corpo)
-  for (const s of [-1, 1]) {
-    const ear = sdRBox(x - s * 10.9, y - 115.5, z + 20.0, 1.0, 3.6, 2.6, 0.6);
-    d = Math.min(d, ear);
+  // abas laterais dobradas para dentro (dá a "caixa" do clipe jacaré)
+  if (y > 70 && y < 98) {
+    const fl = sdRBox(Math.abs(x) - (W - 0.55), y - 84, z - (zc + 1.9), 0.55, 12.5, 1.9, 0.35);
+    d = smin(d, fl, 0.35);
   }
+  // articulação (barril + mola)
+  const barrel = Math.max(Math.abs(x) - 10.6, Math.hypot(y - 98.3, z + 20.9) - 2.1);
+  d = smin(d, barrel, 0.5);
+  // base rebitada no corpo
+  const base = sdRBox(x, y - 100.5, z + 18.75, 10.8, 4.6, 0.75, 0.6);
+  d = Math.min(d, base);
+  for (const s of [-1, 1]) d = smin(d, Math.hypot(x - s * 6.5, y - 102.6, (z + 19.5) * 1.6) - 1.25, 0.3);   // rebites
   return d;
 }

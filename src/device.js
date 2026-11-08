@@ -68,15 +68,15 @@ export function buildDevice({ lcdTexture }) {
   const chrome = new THREE.MeshPhysicalMaterial({ color: new THREE.Color('#ececee'), metalness: 1, roughness: 0.1, vertexColors: true });
   const anisoTex = new THREE.DataTexture(new Uint8Array([255, 128, 255, 255]), 1, 1); anisoTex.needsUpdate = true;
   const steel = patchSurface(new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color('#d9dbde'), metalness: 1, roughness: 0.25, anisotropy: 0.6, anisotropyMap: anisoTex, vertexColors: true,
-  }), { bump: 0.22, grain: 2600, tone: 0.06, brush: 0.9 });
+    color: new THREE.Color('#e8eaed'), metalness: 1, roughness: 0.16, anisotropy: 0.6, anisotropyMap: anisoTex, vertexColors: true,
+  }), { bump: 0.12, grain: 2600, tone: 0.05, brush: 0.9 });
   const black = new THREE.MeshPhysicalMaterial({ color: new THREE.Color('#141414'), roughness: 0.4, clearcoat: 0.2 });
   const holeMat = new THREE.MeshBasicMaterial({ color: 0x050505 });
   const amber = new THREE.MeshPhysicalMaterial({ color: new THREE.Color('#4a3418'), roughness: 0.35, clearcoat: 0.6, transparent: true, opacity: 0.92 });
   const gold = new THREE.MeshPhysicalMaterial({ color: new THREE.Color('#d9ae55'), metalness: 1, roughness: 0.22 });
 
   // ---------------- capa de borracha ----------------
-  const bootMesh = sdfMesh(S.boot, [-36, 0, -21], [36, 131.5, 25], 0.45, rubber, warmAO([0.4, 0.2, 0.03]), { aoScale: 1.25 });
+  const bootMesh = sdfMesh(S.boot, [-36, 0, -25], [38.5, 132, 25], 0.45, rubber, warmAO([0.4, 0.2, 0.03]), { aoScale: 1.25 });
   bootMesh.name = 'boot'; model.add(bootMesh);
 
   // ---------------- lente superior e janelas laterais (leitosas, com LEDs) ----------------
@@ -168,42 +168,66 @@ export function buildDevice({ lcdTexture }) {
   const screw = sdfMesh(S.screw, [-2.8, -2.8, -1.3], [2.8, 2.8, 0.8], 0.07, chrome, warmAO([0.2, 0.2, 0.22]), { aoScale: 0.7, ao: [[0.15, 1], [0.35, 0.6], [0.7, 0.3]] });
   screw.position.set(D.screw[0], D.screw[1], 24.6); screw.rotation.z = 0.35; screw.name = 'screw'; model.add(screw);
 
-  // ---------------- traseira: clipe, etiqueta, contatos ----------------
-  const clip = sdfMesh(S.clip, [-12.5, 30, -26.5], [12.5, 124, -17], 0.22, steel, warmAO([0.35, 0.35, 0.36]), { aoScale: 0.8 },
-    (g, m) => { const uv = new Float32Array(m.nv * 2); for (let i = 0; i < m.nv; i++) { uv[i * 2] = m.positions[i * 3 + 1] / 30; uv[i * 2 + 1] = m.positions[i * 3] / 30; }
-      g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); });
+  // ---------------- traseira: clipe + alça de arame, etiqueta, janela de carga, parafusos ----------------
+  const uvXY = (g, m) => { const uv = new Float32Array(m.nv * 2); for (let i = 0; i < m.nv; i++) { uv[i * 2] = m.positions[i * 3 + 1] / 30; uv[i * 2 + 1] = m.positions[i * 3] / 30; }
+    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); };
+  const clip = sdfMesh(S.clip, [D.clipX - 12.5, 62, -26.2], [D.clipX + 12.5, 106, -17.7], 0.2, steel, warmAO([0.35, 0.35, 0.36]), { aoScale: 0.8 }, uvXY);
   clip.name = 'clip'; model.add(clip);
-  const backLabel = new THREE.Mesh(new THREE.PlaneGeometry(48, 80), new THREE.MeshPhysicalMaterial({
-    map: makeBackLabel(), roughness: 0.35, metalness: 0.1, clearcoat: 0.5, clearcoatRoughness: 0.2,
-  }));
-  backLabel.rotation.y = Math.PI; backLabel.position.set(0, 50, D.ZB + 0.5 - 0.03); backLabel.receiveShadow = true;
-  model.add(backLabel);
-  const insert = new THREE.Mesh(roundedBoxGeo(16.4, 4.8, 0.8, 1.2), black);
-  insert.position.set(0, 10.2, D.ZB + 0.6); model.add(insert);
-  for (const px of [-4.6, 0, 4.6]) {
-    const pad = new THREE.Mesh(roundedBoxGeo(2.6, 2.6, 0.5, 0.3), gold);
-    pad.position.set(px, 10.2, D.ZB + 0.25); model.add(pad);
+  const wireMat = new THREE.MeshPhysicalMaterial({ color: '#dcdee1', metalness: 1, roughness: 0.22 });
+  { // alça de arame (bail) em U por cima do clipe
+    const cx = D.clipX, P = (x, y, z) => new THREE.Vector3(cx + x, y, z);
+    const curve = new THREE.CatmullRomCurve3([P(-11.4, 96.5, -19.6), P(-11.7, 102.0, -20.2), P(-11.4, 107.2, -20.6), P(-10.2, 110.2, -20.8),
+      P(0, 110.9, -20.9), P(10.2, 110.2, -20.8), P(11.4, 107.2, -20.6), P(11.7, 102.0, -20.2), P(11.4, 96.5, -19.6)], false, 'centripetal');
+    const bail = new THREE.Mesh(new THREE.TubeGeometry(curve, 120, 0.8, 12, false), wireMat);
+    bail.castShadow = true; bail.name = 'clipBail'; model.add(bail);
+    for (const sx of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(1.15, 16, 12), wireMat); eye.position.set(cx + sx * 11.4, 96.5, -19.6); model.add(eye); }
   }
-
-  // ---------------- entrada da bomba (bico com filtro) ----------------
-  const inlet = new THREE.Group(); inlet.name = 'inlet'; inlet.userData.action = 'inlet';
-  const prof = [[0, 0], [3.7, 0], [3.8, 0.3], [3.8, 0.9], [3.4, 1.0]];
-  const capProf = [[0, 4.4], [3.45, 4.4], [3.55, 4.6], [3.55, 5.3], [3.3, 5.5], [1.75, 5.9], [1.55, 6.1], [1.55, 7.0], [1.95, 7.1],
-    [1.4, 8.6], [1.4, 8.8], [1.85, 8.9], [1.3, 10.2], [0.75, 10.3], [0.7, 9.0], [0, 9.0]];
-  const lathe = (pts, mat, seg = 40) => { const m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(([r, h]) => new THREE.Vector2(r, h)), seg), mat); m.castShadow = true; return m; };
-  inlet.add(lathe(prof, black));
-  inlet.add(lathe(capProf, black));
-  const housing = lathe([[3.25, 0.9], [3.35, 1.1], [3.35, 4.3], [3.25, 4.45]], new THREE.MeshPhysicalMaterial({
-    color: '#f4f6f0', roughness: 0.15, transmission: 0.0, transparent: true, opacity: 0.45, clearcoat: 1, side: THREE.DoubleSide, depthWrite: false,
+  const backLabel = new THREE.Mesh(new THREE.PlaneGeometry(34, 37), new THREE.MeshPhysicalMaterial({
+    map: makeBackLabel(), roughness: 0.4, clearcoat: 0.4, clearcoatRoughness: 0.25, polygonOffset: true, polygonOffsetFactor: -2,
   }));
-  inlet.add(housing);
-  const filt = new THREE.Mesh(new THREE.CylinderGeometry(2.85, 2.85, 2.8, 32), patchSurface(new THREE.MeshStandardMaterial({ color: '#fbfbf6', roughness: 0.95 }), { bump: 0.6, grain: 5000, tone: 0.06 }));
-  filt.position.y = 2.65; inlet.add(filt);
-  inlet.rotation.z = -Math.PI / 2;            // eixo +y → +x
-  inlet.position.set(D.hwLo + 1.75, D.inlet.y, D.inlet.z);
+  backLabel.rotation.y = Math.PI; backLabel.position.set(D.clipX, 44.5, D.ZB - 0.03); backLabel.receiveShadow = true; backLabel.name = 'backLabel';
+  model.add(backLabel);
+  { // janela de carga: fundo escuro, 3 contatos dourados redondos, tampa fumê transparente
+    const C = D.charge;
+    const floor = new THREE.Mesh(roundedBoxGeo(C.hx * 2, C.hy * 2, 0.6, 1.4), new THREE.MeshPhysicalMaterial({ color: '#5d5d5c', roughness: 0.45 }));
+    floor.position.set(C.x, C.y, D.ZB + 1.55); model.add(floor);
+    for (const dx of [-3.6, 0, 3.6]) {
+      const c = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 0.9, 24), gold);
+      c.rotation.x = Math.PI / 2; c.position.set(C.x + dx, C.y - 1.0, D.ZB + 1.0); model.add(c);
+    }
+    const smoke = new THREE.Mesh(roundedBoxGeo(C.hx * 2 - 0.3, C.hy * 2 - 0.3, 0.7, 1.2), new THREE.MeshPhysicalMaterial({
+      color: '#d4d4cf', roughness: 0.1, clearcoat: 1, clearcoatRoughness: 0.05, transparent: true, opacity: 0.3, depthWrite: false,
+    }));
+    smoke.position.set(C.x, C.y, D.ZB + 0.45); smoke.renderOrder = 1; model.add(smoke);
+  }
+  const addScrew = (x, y, zFace, name) => {   // parafuso Phillips cromado com cabeça voltada para -z
+    const sc = screw.clone(); sc.rotation.set(0, Math.PI, Math.random() * 3); sc.position.set(x, y, zFace - 1.1); sc.name = name; model.add(sc);
+  };
+  D.backScrews.forEach(([x, y], i) => addScrew(x, y, D.ZB + 1.6, 'backScrew' + i));
+  addScrew(D.filterScrew[0], D.filterScrew[1], -21.6, 'filterScrew');
+
+  // ---------------- entrada da bomba: bico vertical no topo do bojo + filtro redondo ----------------
+  const lathe = (pts, mat, seg = 48) => { const m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(([r, h]) => new THREE.Vector2(r, h)), seg), mat); m.castShadow = true; return m; };
+  const filterMat = patchSurface(new THREE.MeshStandardMaterial({ color: '#fbfbf7', roughness: 0.95 }), { bump: 0.7, grain: 4200, tone: 0.06 });
+  const filterDisc = lathe([[0, 0], [4.55, 0], [4.65, 0.25], [4.6, 0.9], [4.3, 1.15], [2.5, 1.35], [0, 1.4]], filterMat);
+  filterDisc.rotation.x = -Math.PI / 2; filterDisc.position.set(D.filter[0], D.filter[1], -21.2); filterDisc.name = 'filter';
+  model.add(filterDisc);
+  const inlet = new THREE.Group(); inlet.name = 'inlet'; inlet.userData.action = 'inlet';
+  const clearMat = new THREE.MeshPhysicalMaterial({ color: '#eef4f6', roughness: 0.06, transmission: 0.92, thickness: 1.2, ior: 1.5,
+    attenuationColor: new THREE.Color('#d8eef2'), attenuationDistance: 8, clearcoat: 1, clearcoatRoughness: 0.03 });
+  const whiteMat = new THREE.MeshPhysicalMaterial({ color: '#f3f1e9', roughness: 0.38, clearcoat: 0.5, clearcoatRoughness: 0.2,
+    transmission: 0.25, thickness: 1.5, sheen: 0.3, sheenColor: new THREE.Color('#ffffff') });
+  inlet.add(lathe([[0, -1.2], [4.3, -1.2], [4.5, -0.8], [4.4, 0.3], [3.6, 0.5], [0, 0.5]], black));                  // anel de vedação
+  inlet.add(lathe([[3.5, 0.4], [3.55, 0.8], [3.25, 1.1], [3.25, 7.5], [3.45, 7.9], [3.45, 8.2]], clearMat));         // corpo transparente
+  inlet.add(lathe([[0, 0.5], [1.7, 0.5], [1.7, 8.0], [0, 8.0]], whiteMat));                                            // núcleo interno
+  const oring = new THREE.Mesh(new THREE.TorusGeometry(2.4, 0.45, 12, 40), black); oring.rotation.x = Math.PI / 2; oring.position.y = 2.6; inlet.add(oring);
+  inlet.add(lathe([[0, 8.0], [3.6, 8.0], [3.75, 8.3], [3.75, 10.6], [3.4, 11.0], [2.0, 11.3], [2.0, 12.5], [2.75, 12.6], [1.8, 15.6],
+    [1.8, 16.0], [2.5, 16.1], [1.65, 18.6], [1.05, 18.8], [0.85, 17.5], [0, 17.5]], whiteMat));                     // espigão branco
+  const nozzleTop = 18.8;
+  inlet.position.set(D.inlet.x, D.H - 0.4, D.inlet.z);
   model.add(inlet);
   const inletAnchor = new THREE.Object3D(); inletAnchor.name = 'inletAnchor';
-  inletAnchor.position.set(D.hwLo + 1.75 + 10.3, D.inlet.y, D.inlet.z);
+  inletAnchor.position.set(D.inlet.x, D.H - 0.4 + nozzleTop, D.inlet.z);
   model.add(inletAnchor);
 
   // ---------------- luz dos LEDs ----------------
