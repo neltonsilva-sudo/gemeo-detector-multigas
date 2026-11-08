@@ -35,7 +35,7 @@ export function createDemo(sim) {
   async function say(text, minMs = 0) {
     const my = token;
     const voice = hasTTS ? pickVoice() : null;
-    cap.style.display = 'flex';
+    cap.style.display = 'none'; // legenda retirada a pedido do usuário (atrapalhava a visão do aparelho); só a voz narra
     cap.innerHTML = `<div><b>Francisca</b></div><div>${text}<span class="dm-v">${voice ? 'voz: ' + voice.name : 'sem voz no navegador — legenda apenas'}</span></div>`;
     const t0 = performance.now();
     if (voice) {
