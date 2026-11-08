@@ -81,8 +81,8 @@ function parseText(t) {
   const out = [];
   for (const ch of String(t ?? '')) {
     if (ch === '.' || ch === ',') { if (out.length && !out[out.length - 1].dp) out[out.length - 1].dp = true; else out.push({ ch: ' ', dp: true }); }
-    else if (ch === 'M' || ch === 'm') out.push({ ch: 'M', dp: false }, { ch: '\u0001', dp: false });   // M = ∩ + ┐ (3 pernas)
-    else if (ch === 'W' || ch === 'w') out.push({ ch: 'W', dp: false }, { ch: '\u0002', dp: false });   // W = U + ┘
+    else if (ch === 'M' || ch === 'm') out.push({ ch: 'M', dp: false }, { ch: '\u0001', dp: false, join: true });   // M = ∩ + ┐ colados (3 pernas)
+    else if (ch === 'W' || ch === 'w') out.push({ ch: 'W', dp: false }, { ch: '\u0002', dp: false, join: true });   // W = U + ┘ colados
     else out.push({ ch, dp: false });
   }
   return out;
@@ -126,13 +126,13 @@ export function createLCD() {
     target.save();
     target.beginPath(); target.rect(rx, ry, rw, rh); target.clip();
     target.filter = 'blur(2.5px)'; target.globalAlpha = SHADOW_A;                   // sombra no refletor (paralaxe do vidro traseiro)
-    target.drawImage(layer, rx, ry, rw, rh, rx + 9, ry + 11, rw, rh);
+    target.drawImage(layer, rx, ry, rw, rh, rx + 8, ry + 10, rw, rh);
     target.filter = 'blur(0.4px)'; target.globalAlpha = 0.94;                        // segmento
     target.drawImage(layer, rx, ry, rw, rh, rx, ry, rw, rh);
     target.restore();
   }
   const INK = 'rgb(14,17,15)';
-  const SHADOW_A = 0.30;
+  const SHADOW_A = 0.27;
   const inkGrad = lctx.createLinearGradient(0, 0, W * 0.4, H);
   inkGrad.addColorStop(0, 'rgba(70,82,74,0.10)'); inkGrad.addColorStop(1, 'rgba(0,0,0,0)');
 
@@ -150,8 +150,8 @@ export function createLCD() {
     });
     if (s.banner) {
       // banner: células contíguas centradas na linha superior (palavra inteira legível: PUMP, BUMP, SPAN…)
-      const b = parseText(String(s.banner).slice(0, 8)); const n = b.length;
-      if (n) out(b, (j) => L.bannerSlot(n, j));
+      const b = parseText(String(s.banner).slice(0, 8));
+      if (b.length) { const sl = L.bannerSlots(b.map((c) => !!c.join)); out(b, (j) => sl[j]); }
     } else {
       (s.fields || []).slice(0, 4).forEach((f, fi) => {
         if (!f || !blinkVis(f.blink)) return;

@@ -40,13 +40,13 @@ controls.minDistance = 0.08; controls.maxDistance = 2.5;
 controls.target.set(0, 0.07, 0);
 const CAMS = {
   // vista da foto ref1: frente levemente de cima e da esquerda, aparelho ocupando o quadro
-  ref1: { pos: [-0.114, 0.2, 0.296], tgt: [0.006, 0.074, 0], fov: 26 },
+  ref1: { pos: [-0.132, 0.213, 0.34], tgt: [0.006, 0.068, 0], fov: 26 },
   hero: { pos: [-0.16, 0.16, 0.36], tgt: [0.03, 0.065, 0], fov: 32 },
   front: { pos: [0, 0.066, 0.42], tgt: [0, 0.066, 0], fov: 24 },
   back: { pos: [0.08, 0.1, -0.38], tgt: [0, 0.066, 0], fov: 26 },
   lcd: { pos: [0, 0.1, 0.17], tgt: [0, 0.094, 0.02], fov: 22 },
   top: { pos: [0.02, 0.32, 0.18], tgt: [0, 0.12, 0], fov: 28 },
-  ref2: { pos: [0.02, 0.17, 0.9], tgt: [0.02, 0.15, 0], fov: 30 },
+  ref2: { pos: [0.025, 0.2, 0.85], tgt: [0.025, 0.172, 0], fov: 26 },
   kit: { pos: [0.1, 0.25, 0.8], tgt: [0.12, 0.1, -0.05], fov: 34 },
 };
 function setCam(name) {
@@ -123,9 +123,10 @@ const sim = {
 window.__sim = sim;
 const ui = showUI ? createUI({ fw, world, kit, sim, audio }) : { update() {} };
 sim.ui = ui;
-sim.demo = createDemo(sim);
-sim.zoom = createZoom(sim);
-if (Q.get('demo') === '1') document.addEventListener('pointerdown', () => { audio.unlock(); if (!sim.demo.running) sim.demo.start(); }, { once: true });
+// botões da demonstração e da tela de perto só com a UI (capturas ui=0 ficam limpas)
+sim.zoom = showUI ? createZoom(sim) : null;
+sim.demo = showUI ? createDemo(sim) : null;
+if (Q.get('demo') === '1') document.addEventListener('pointerdown', () => { audio.unlock(); if (sim.demo && !sim.demo.running) sim.demo.start(Math.max(0, qn('cap', 1) - 1)); }, { once: true });
 if (Q.get('state')) sim.jump(Q.get('state'));
 else fw.power(true);
 

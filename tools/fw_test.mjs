@@ -236,7 +236,7 @@ console.log('\n10) Bateria: 13 h → fraca → esgotada → desliga');
   const fw = createFirmware({ seed: 16 }); bootToRun(fw); fw.setBattery(1);
   let tLow = -1, tOff = -1, t = 0, beepsLow = 0, prev = false, eight = 0;
   for (let i = 0; i < 15 * 3600 * 60; i++) {
-    const dt = fw.battery > 0.001 ? 1 : 1 / 60;
+    const dt = fw.battery > 0.003 ? 1 : 1 / 60;
     const o = fw.update(dt, CLEAN, {}); t += dt;
     if (tLow < 0 && o.state === 'lowbat') tLow = t;
     if (o.state === 'depleted') { break; }
@@ -284,6 +284,15 @@ console.log('\n12) Desligar: 4 bipes; jump() de todos os estados');
   const f3 = createFirmware({ seed: 24 }); f3.jump('bump'); const tb = until(f3, (o) => o.lcd.banner === 'PASS', 120);
   ok(tb > 0, `jump('bump') → BUMP OK em ${tb.toFixed(1)} s`);
   ok(f3.log.length > 3 && f3.log.every((e) => e.time && typeof e.t === 'number'), `log com timestamp (${f3.log.length} eventos, ex.: ${f3.log.at(-1).time} ${f3.log.at(-1).text})`);
+}
+
+console.log('\n13) Rodada 2: piscar por nível, consulta bloqueada em alarme, hold exige novo aperto');
+{
+  const a = createFirmware({ seed: 30 }); a.jump('low'); ok(a.out.lcd.fields[0].blink === 'slow', "BAIXO: campo pisca 'slow'");
+  const b = createFirmware({ seed: 31 }); b.jump('multi'); ok(b.out.lcd.fields[0].blink === 'fast' && b.out.lcd.fields[1].blink === 'slow' && typeof b.out.lcd.alarmT === 'number', "multigás: H₂S 'fast', CO 'slow', lcd.alarmT presente");
+  const c = createFirmware({ seed: 32 }); c.jump('high'); tap(c); tap(c); ok(c.out.view == null && c.out.state === 'high', 'dois toques em alarme não abrem PICO');
+  const d = createFirmware({ seed: 33 }); d.jump('cal-done'); run(d, 9, () => ({ button: true })); ok(d.out.state === 'run', 'botão segurado desde cal-done não inicia DESLIGAR');
+  for (const n of ['cal-zero', 'cal-apply', 'cal-span', 'cal-done', 'calcount', 'bump', 'bump-ok', 'peak']) { const f = createFirmware({ seed: 34 }); ok(f.jump(n) && f.out.hud.title, `jump('${n}') para a demonstração → ${f.out.state}`); }
 }
 
 console.log(`\n${pass} ok, ${fail} falha(s)`);

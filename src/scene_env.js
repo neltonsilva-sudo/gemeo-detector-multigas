@@ -83,8 +83,9 @@ export function buildEnvScene() {
   // ---- ESTÚDIO (5600 K levemente quente). Intensidades calibradas p/ tom Neutral exp 1.0:
   // reflexo especular de softbox fica < limiar do bloom (≈3) → não "estrela" no cromado.
   const W5600 = new THREE.Color(1.0, 0.985, 0.96);
-  panel(5.2, 3.6, dirPos(-0.62, 0.62, 0.62, 6), W5600.clone().multiplyScalar(2.7), 's');      // KEY: grande, acima-esquerda-frente
-  panel(4.2, 4.2, dirPos(0.85, 0.22, 0.6, 6.5), W5600.clone().multiplyScalar(1.05), 's');     // FILL: direita-frente, difuso
+  panel(4.6, 3.4, dirPos(-0.78, 0.66, 0.5, 6), W5600.clone().multiplyScalar(2.7), 's');      // KEY: ~45° lateral esquerda, alto
+  panel(1.7, 6.2, dirPos(-0.86, 0.12, 0.42, 6), W5600.clone().multiplyScalar(2.5), 's', stTex); // STRIP vertical esq. → faixa especular larga no flanco
+  panel(4.2, 4.2, dirPos(0.85, 0.22, 0.6, 6.5), W5600.clone().multiplyScalar(0.5), 's');      // FILL: direita-frente, −1 EV
   panel(1.3, 6.0, dirPos(-0.62, 0.16, -0.78, 6), W5600.clone().multiplyScalar(2.6), 's', stTex); // RIM esq. (strip vertical, atrás-esquerda)
   panel(1.1, 6.0, dirPos(0.9, 0.18, -0.5, 6), W5600.clone().multiplyScalar(2.3), 's', stTex);   // RIM dir. (strip vertical)
   panel(4.0, 2.4, dirPos(0.05, 1.0, 0.18, 6), W5600.clone().multiplyScalar(1.5), 's');         // TOP: overhead p/ vidro/topo

@@ -190,8 +190,9 @@ export function clip(x, y, z) {
   const yc = 78.5, hy = 46.5;
   let d2 = sdRRect(x, y - yc, 11.2 - smoothstep(60, 34, y) * 1.4, hy, 5.0);
   const zc = clipZ(y) - smoothstep(4.5, 1.5, Math.abs(x)) * 0.55 * smoothstep(42, 50, y) * smoothstep(100, 92, y);
-  const dz = (Math.abs(z - zc) - 0.6) * 0.92;
-  let d = Math.min(Math.max(d2, dz), 0) + Math.hypot(Math.max(d2, 0), Math.max(dz, 0));
+  const rb = 0.35;                                   // bisel das arestas da chapa
+  const dz = (Math.abs(z - zc) - 0.6 + rb) * 0.92, dx = d2 + rb;
+  let d = Math.min(Math.max(dx, dz), 0) + Math.hypot(Math.max(dx, 0), Math.max(dz, 0)) - rb;
   // articulação (barril + mola)
   const barrel = Math.max(Math.abs(x) - 9.8, Math.hypot(y - 116.5, z + 21.6) - 2.5);
   d = smin(d, barrel - 0.0, 0.6);

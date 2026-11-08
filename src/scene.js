@@ -18,6 +18,7 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { HorizontalBlurShader } from 'three/addons/shaders/HorizontalBlurShader.js';
 import { VerticalBlurShader } from 'three/addons/shaders/VerticalBlurShader.js';
 import { StarPass, GradePass, invertToneGray } from './scene_post.js';
+const srgb8ToLin = (v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
 import { buildEnvScene, concreteTextures, plantBackdropTexture } from './scene_env.js';
 
 const Q = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
@@ -25,8 +26,8 @@ const Q = new URLSearchParams(typeof location !== 'undefined' ? location.search 
 // parâmetros por modo (tudo interpolado na transição)
 const MODES = {
   estudio: {
-    w: 0, bgCenter: 0xf8, bgEdge: 0xf0,                 // sRGB 8 bits APÓS tone mapping (fundo infinito)
-    keyDir: [-0.55, 0.9, 0.62], keyColor: [1.0, 0.975, 0.94], keyI: 1.3,
+    w: 0, bgCenter: 0xff, bgEdge: 0xfc,                 // sRGB 8 bits finais (estúdio: fundo fora do tone mapping = branco puro)
+    keyDir: [-0.78, 0.72, 0.55], keyColor: [1.0, 0.975, 0.94], keyI: 1.45,
     exposure: 1.0, envI: 0.9, shadowOpacity: 0.16, contactOpacity: 0.62, fog: 0.0, shadowR: 14,
     fogColor: [0.05, 0.058, 0.066], vignette: 0.0, floor: 0, bloom: 0.26,
   },
@@ -74,7 +75,7 @@ const STAGE_DSPEC = '0.28', STAGE_DROUGH = '0.42';
   const o = 'gl_FragColor = vec4( outgoingLight, diffuseColor.a );';
   if (C.opaque_fragment.includes(o)) C.opaque_fragment = C.opaque_fragment.replace(o, o + `
 #if defined( OPAQUE ) && ( defined( STANDARD ) || defined( LAMBERT ) || defined( PHONG ) || defined( TOON ) )
-	gl_FragColor.a = 1.0 + dot( totalEmissiveRadiance, vec3( 0.2126, 0.7152, 0.0722 ) );
+	gl_FragColor.a = 1.0 + max( totalEmissiveRadiance.r, max( totalEmissiveRadiance.g, totalEmissiveRadiance.b ) ); // max(r,g,b): LED vermelho conta igual ao verde
 #endif`);
 })();
 
@@ -114,17 +115,18 @@ export function createStage({ canvas, quality = 'high' } = {}) {
   const bgScene = new THREE.Scene();
   const bgCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const bgUniforms = {
-    cA: { value: new THREE.Color() }, cB: { value: new THREE.Color() }, aspect: { value: 1 },
+    cA: { value: new THREE.Color() }, cB: { value: new THREE.Color() }, aspect: { value: 1 }, bgAlpha: { value: 0 },
   };
   const bgMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
     uniforms: bgUniforms, depthTest: false, depthWrite: false,
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
     fragmentShader: /* glsl */`
-      uniform vec3 cA, cB; uniform float aspect; varying vec2 vUv;
+      uniform vec3 cA, cB; uniform float aspect, bgAlpha; varying vec2 vUv;
       void main(){
         vec2 p = (vUv - vec2(0.5, 0.56)) * vec2(aspect, 1.0);
         float r = length(p) / length(vec2(aspect, 1.0) * 0.5);
-        gl_FragColor = vec4(mix(cA, cB, smoothstep(0.15, 1.0, r)), 1.0);
+        // alfa = marcador de fundo: 0 → OutputPass NÃO aplica tone mapping (branco exato; sombras de contato compõem linearmente)
+        gl_FragColor = vec4(mix(cA, cB, smoothstep(0.15, 1.0, r)), bgAlpha);
       }`,
   }));
   bgMesh.frustumCulled = false; bgScene.add(bgMesh);
@@ -309,9 +311,22 @@ export function createStage({ canvas, quality = 'high' } = {}) {
     }`;
   bloom.materialHighPassFilter.needsUpdate = true;
   bloom.highPassUniforms.smoothWidth.value = 1.5;
+  Object.assign(bloom.blendMaterial, { blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+    blendEquation: THREE.AddEquation, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor, blendEquationAlpha: THREE.AddEquation });
   composer.addPass(bloom);
   const star = new StarPass(high ? 2 : 4); composer.addPass(star);
   const output = new OutputPass(); composer.addPass(output);
+  // OutputPass com marcador de fundo: alfa < 1 (fundo do estúdio e o que se compõe sobre ele, ex. sombras) sai linear,
+  // sem a curva — o branco do ciclorama fica 255 exato e a sombra de contato continua legível.
+  {
+    const f = output.material.fragmentShader;
+    const a = 'gl_FragColor = texture2D( tDiffuse, vUv );', b = '// color space';
+    if (f.includes(a) && f.includes(b)) {
+      output.material.fragmentShader = f.replace(a, a + '\n\t\t\tvec4 stageRaw = gl_FragColor;')
+        .replace(b, 'gl_FragColor.rgb = mix( clamp( stageRaw.rgb, 0.0, 1.0 ), gl_FragColor.rgb, clamp( stageRaw.a, 0.0, 1.0 ) );\n\t\t\tgl_FragColor.a = 1.0;\n\t\t\t' + b);
+      output.material.needsUpdate = true;
+    }
+  }
   const grade = new GradePass(); composer.addPass(grade);
   let fxaa = null;
   if (!high) { fxaa = new ShaderPass(FXAAShader); composer.addPass(fxaa); }
@@ -344,10 +359,13 @@ export function createStage({ canvas, quality = 'high' } = {}) {
     const LA = (n) => A[n].map((v, i) => lerp(v, B[n][i], k));
     // fundo calibrado: inverte a curva de tom para acertar o branco exato
     const exp = L('exposure'); renderer.toneMappingExposure = exp;
-    const vA = lerp(invertToneGray(A.bgCenter, renderer.toneMapping, exp), invertToneGray(B.bgCenter, renderer.toneMapping, exp), k);
-    const vB = lerp(invertToneGray(A.bgEdge, renderer.toneMapping, exp), invertToneGray(B.bgEdge, renderer.toneMapping, exp), k);
+    // estúdio: valor linear direto (fora do tone mapping); campo: inverte a curva para casar com a névoa tonemapeada
+    const bgv = (M, n) => (M.w > 0.5 ? invertToneGray(M[n], renderer.toneMapping, exp) : srgb8ToLin(M[n]));
+    const vA = lerp(bgv(A, 'bgCenter'), bgv(B, 'bgCenter'), k);
+    const vB = lerp(bgv(A, 'bgEdge'), bgv(B, 'bgEdge'), k);
     const fc = LA('fogColor');
     const wC = L('w'); // peso do campo
+    bgUniforms.bgAlpha.value = wC;
     bgUniforms.cA.value.setRGB(vA, vA, vA).lerp(tmpC.setRGB(...fc), wC);
     bgUniforms.cB.value.setRGB(vB, vB, vB).lerp(tmpC.setRGB(...fc).multiplyScalar(0.7), wC);
     const kd = new THREE.Vector3(...LA('keyDir')).normalize();

@@ -19,6 +19,9 @@
 //                              | 'chirp' (bipe curtíssimo 0,07 s: bipe de confiança a cada 10 s)
 //               level   = 0..1 intensidade sugerida (1 alarme, 0,6 bipes de interface)
 // out.vibrate : motor de vibração ligado neste quadro (alarmes, autoteste, desligar, bateria esgotada).
+// out.lcd.fields[i].blink : false | true | 'slow' | 'fast' — campo em alarme pisca no ritmo do alarme daquele gás
+//               ('slow' = BAIXO/TWA, 1 Hz; 'fast' = ALTO/STEL/OL, 0,32 s). out.lcd.alarmT = s desde o início do alarme
+//               (fase comum de sirene/LED: 'slow' aceso se alarmT%1<0,3 ; 'fast' aceso se alarmT%0,32<0,16).
 // out.backlight / out.lcd.backlight : retroiluminação (toque = 5 s; sempre acesa em alarme; apagada no modo invisível).
 // out.pump    : { running, fault, strain }  running = motor girando (ventoinha anima); strain = entrada obstruída (motor forçando).
 // out.readings: leituras exibidas (números; OL → valor acima da escala). out.raw = leituras brutas do sensor.
@@ -69,6 +72,8 @@ export const DEFAULT_SETTINGS = {
   sensors: { H2S: true, CO: true, O2: true, LEL: true },
 };
 
+// tensão de corte: o aparelho desliga com ~0,1 % de carga (≈45 s de reserva), não com a célula a zero
+const CUTOFF = 0.001;
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const fmtN = (v, d = 0) => (d ? v.toFixed(d).replace('.', ',') : String(Math.round(v)));
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -92,6 +97,7 @@ export function createFirmware(opts = {}) {
   let lastCal = { H2S: clock - 33 * 86400, CO: clock - 33 * 86400, O2: clock - 33 * 86400, LEL: clock - 33 * 86400 };
   let lastBump = clock - 2 * 3600;
   // botão
+  let pressMode = 'off'; // modo em que o aperto atual começou (ações de "segurar" exigem soltar e apertar de novo)
   let btnPrev = false, pressT = 0, lastTapAt = -9, autoHold = false, offHold = false, tapsInWin = 0;
   // run
   let view = null, viewT = 0, blT = 0, blinkT = 0, heartT = 0, confT = 0, lowbatT = 0, fanPhase = 0, alarmT = 0;
@@ -225,7 +231,7 @@ export function createFirmware(opts = {}) {
     const b = !!fw.input.button || autoHold;
     const pressEdge = b && !btnPrev, relEdge = !b && btnPrev;
     btnPrev = b;
-    if (pressEdge) { pressT = 0; onPress(); }
+    if (pressEdge) { pressT = 0; pressMode = fw.mode; onPress(); }
     if (b) { pressT += h; onHold(); }
     if (relEdge) {
       const wasTap = pressT < 0.8;
@@ -242,12 +248,13 @@ export function createFirmware(opts = {}) {
     const m = fw.mode;
     if (m === 'off') {
       if (offHold) { if (pressT >= 7.0) { go('calcount'); beep1(); } }
+      else if (pressMode !== 'off' && !autoHold) { /* botão vinha segurado de outro estado: precisa soltar */ }
       else if (battery > 0.005 || autoHold) { go('boot'); beep1(); log('energia', 'Botão pressionado: contagem para ligar'); }
       else if (pressT > 0.3 && st > 0.5) { go('depleted'); }
       return;
     }
     if (m === 'boot') return;
-    if ((m === 'run' || m === 'callock' || m === 'cal-apply') && pressT >= 1.5) { go('shutdown'); beep1(); log('energia', 'Botão mantido: contagem DESLIGAR'); }
+    if ((m === 'run' || m === 'callock' || m === 'cal-apply') && pressMode === m && pressT >= 1.5) { go('shutdown'); beep1(); log('energia', 'Botão mantido: contagem DESLIGAR'); }
   }
   function onRelease() {
     autoHold = false;
@@ -281,6 +288,7 @@ export function createFirmware(opts = {}) {
   }
   function onDouble() {
     if (fw.mode !== 'run' || pumpFault) return;
+    if (alarmKind(activeAlarms())) { log('consulta', 'Dois toques ignorados: em alarme o display mantém a leitura ao vivo'); return; }
     if (!view) { view = 'peak'; viewT = 0; log('consulta', 'Dois toques: consulta PICO → TWA → STEL'); }
     else if (view === 'clear') { /* segundo toque do par já tratado como tap */ }
   }
@@ -374,6 +382,15 @@ export function createFirmware(opts = {}) {
       if (st >= 120) { cal.failMsg = 'Gás de calibração não aplicado em 2 min'; go('cal-fail'); cal.spanRes = {}; for (const g of GASES) cal.spanRes[g] = false; beeps(3, 0.2, 0.15, { red: true }); log('cal', 'Calibração cancelada: gás não aplicado'); }
       return;
     }
+    if (m === 'cal-span' || m === 'cal-apply') {
+      cal.blockT = lastCtx.inletBlocked ? (cal.blockT || 0) + h : 0;
+      const lim = m === 'cal-span' ? settings.pumpFaultSec : 20;
+      if (cal.blockT > lim) {
+        cal.flowFail = true; cal.failMsg = 'Fluxo bloqueado: a bomba não conseguiu aspirar o gás (válvula fechada, mangueira dobrada ou entrada tapada)';
+        cal.spanRes = {}; for (const g of GASES) cal.spanRes[g] = false;
+        go('cal-fail'); beeps(3, 0.2, 0.15, { red: true }); log('bomba', 'Calibração interrompida: fluxo bloqueado'); return;
+      }
+    }
     if (m === 'cal-span') {
       if (!lastCtx.inletBlocked) cal.gasT += h;
       const k = Math.floor(st);
@@ -455,8 +472,9 @@ export function createFirmware(opts = {}) {
         beeps(3, 0.2, 0.15, { red: true }); log('bump', `BUMP REPROVADO: ${bump.failed.map((g) => NAMES[g]).join(', ')} não alarmou`);
       }
     }
-    if (bump.result) { bump.resT += h; if (bump.resT > 5) bump.result = null; }
+    if (bump.result) { bump.resT += h; if (bump.result === 'pass' && bump.resT > 5) bump.result = null; }
     // consultas
+    if (k && view) view = null;   // alarme: volta imediatamente à leitura ao vivo
     if (view) {
       viewT += h;
       const seq = ['peak', 'twa', 'stel', 'clear'], dur = { peak: 3, twa: 3, stel: 3, clear: 5 };
@@ -469,7 +487,7 @@ export function createFirmware(opts = {}) {
     if (settings.confidence && !k && !pumpFault) {
       confT += h; if (confT >= 10) { confT = 0; sfx(0, 0.07, { kind: 'chirp', green: true, freq: 3000 }); }
     }
-    if (battery <= 0) { go('depleted'); log('bateria', 'Bateria esgotada — desligamento automático'); }
+    if (battery <= CUTOFF) { go('depleted'); log('bateria', 'Bateria esgotada — desligamento automático'); }
   }
 
   // ---------------- passo de simulação ----------------
@@ -478,21 +496,28 @@ export function createFirmware(opts = {}) {
     _h = h; T += h; clock += h; st += h; blinkT += h; heartT += h;
     if (blT > 0) blT -= h;
     buttonStep(h);
-    const m = fw.mode;
+    let m = fw.mode;
     const powered = m !== 'off';
     const pumpOn = powered && !['boot', 'selftest', 'poweroff', 'depleted'].includes(m) && !(m === 'run' && pumpFault) && m !== 'pumpfail';
     const flowing = pumpOn && !ctx.inletBlocked;
     if (powered) {
       sensors.step(h, gas, flowing, ctx.hoseLen);
       computeDisplay();
-      const load = 1 + (blT > 0 || fw.out?.backlight ? 0.25 : 0) + (fw.out?.buzzer?.on ? 0.5 : 0);
+ // consumo relativo (média no ciclo, independe do passo): bomba+sensores = 1; alarme (piezo 95 dB + LEDs + motor,
+      // ~30 % de ciclo) +0,3; luz de fundo +0,1. Em alarme contínuo a autonomia cai para ~9 h.
+      const o = fw.out || {};
+      const load = 1 + ((o.alarms && o.alarms.length) ? 0.3 : 0) + (blT > 0 || o.backlight ? 0.1 : 0);
       battery = Math.max(0, battery - (h * load) / (settings.batteryHours * 3600));
+      if (battery <= CUTOFF && !['depleted', 'poweroff', 'off'].includes(fw.mode)) { go('depleted'); log('bateria', 'Bateria esgotada — desligamento automático'); }
     }
+    m = fw.mode;
     if (pumpOn) fanPhase = (fanPhase + h * (ctx.inletBlocked ? 0.6 : 2.2)) % 1;
     if (['boot', 'selftest', 'version', 'limits', 'caldays', 'bumpdue', 'pumptest', 'pumpfail', 'autozero'].includes(m)) powerOnSequenceStep();
     else if (m.startsWith('cal')) calStep(h);
     else if (m === 'run') runStep(h);
     else if (m === 'shutdown') {
+      if (prevMode === 'run') runStep(h); // alarmes, TWA/STEL e picos continuam durante a contagem
+      if (fw.mode !== 'shutdown') { fx = fx.filter((e) => T < e.t0 + e.dur + 0.01); return; }
       const dgt = 3 - Math.floor((pressT - 1.5) / 1.17);
       if (dgt !== sub && dgt >= 1) { if (sub) beep1(); sub = dgt; }
       if (pressT >= 5.0) {
@@ -578,13 +603,13 @@ export function createFirmware(opts = {}) {
         hud = { title: 'Dias até a próxima calibração', text: mn > 0 ? `Faltam ${mn} dias para a calibração obrigatória (intervalo de ${settings.calInterval} dias).` : 'Calibração VENCIDA — calibre o aparelho antes de usá-lo.', level: mn > 0 ? 'info' : 'warn', step: 'Calibração 5/8' };
         break; }
       case 'bumpdue':
-        icons.bump = blinkOn; icons.warn = true; icons.cyl = blinkOn; fields = [F(''), F(''), F(''), F('')]; banner = 'bUMP';
+        icons.bump = blinkOn; icons.warn = true; icons.cyl = blinkOn; fields = [F(''), F(''), F(''), F('')]; banner = 'dUE';
         hud = { title: 'Bump test vencido', text: `O último teste de resposta foi há mais de ${settings.bumpInterval} h. Faça o bump test (gás acima do alarme ALTO) antes de entrar na área.`, level: 'warn', step: 'Calibração 5/8' };
         break;
       case 'pumptest':
         icons.pump = true; icons.fan = true; fields = [F(''), F(''), F(''), F('')];
         if (!ptPassed) {
-          banner = blinkOn ? 'PUMP' : 'tESt'; icons.warn = blinkOn;
+          banner = 'bLOC'; icons.pump = blinkOn; icons.warn = true;
           hud = { title: 'Teste da bomba: BLOQUEIE A ENTRADA', text: `Tape o bico de entrada da bomba com o dedo (ou feche a válvula com a mangueira conectada) por ~1 s. O aparelho precisa detectar o vácuo. Restam ${Math.max(0, Math.ceil(30 - st))} s.`, level: 'warn', step: 'Teste da bomba 6/8' };
         } else {
           banner = 'PASS'; icons.check = true;
@@ -592,7 +617,7 @@ export function createFirmware(opts = {}) {
         }
         break;
       case 'pumpfail': {
-        icons.pump = blinkOn; icons.warn = true; banner = blinkOn ? 'PUMP' : 'FAIL'; fields = [F(''), F(''), F(''), F('')];
+        icons.pump = blinkOn; icons.warn = true; banner = blinkOn ? 'FAIL' : null; fields = [F(''), F(''), F(''), F('')];
         const p = patternAt('fast', st); buzz = { on: p.buzz, freq: 2900, pattern: 'fast', level: 1 }; leds.red = p.red ? 1 : 0; vib = p.vib; backlight = true;
         alarms.push({ gas: 'PUMP', level: 'fault', value: null, latched: false });
         hud = { title: 'Teste da bomba REPROVADO', text: settings.pumpFailOff ? 'A entrada não foi bloqueada (ou há vazamento na bomba/filtro/mangueira). O aparelho vai desligar — verifique o filtro e as conexões e religue.' : 'Vácuo não detectado. Verifique filtro/conexões; toque o botão para repetir o teste.', level: 'alarm', step: 'Teste da bomba 6/8' };
@@ -605,6 +630,15 @@ export function createFirmware(opts = {}) {
         const d = Math.max(1, 3 - Math.floor(Math.max(0, pressT - 1.5) / 1.17)); banner = `OFF ${d}`; icons.off = true; backlight = true;
         fields = [F(''), F(''), F(''), F('')];
         hud = { title: `Desligar: ${d}…`, text: 'Mantenha o botão pressionado até o fim da contagem para desligar. Se continuar segurando depois que o display apagar, entra a contagem CAL (calibração).', level: 'info', step: null };
+        if (prevMode === 'run') {
+          act = activeAlarms(); kind = alarmKind(act);
+          if (kind) {
+            for (const g of GASES) if (act[g]) alarms.push({ gas: g, level: act[g].level, value: display[g], latched: !!act[g].latched });
+            icons.bell = true; const p = patternAt(patternOf(kind), alarmT);
+            buzz = { on: p.buzz, freq: p.freq, pattern: patternOf(kind), level: 1 }; leds.red = p.red ? 1 : 0; vib = p.vib;
+            hud = { title: `Desligar: ${d}… — ALARME ATIVO`, text: `O alarme de gás continua (${Object.keys(act).map((g) => NAMES[g]).join(', ')}). Desligar o detector numa área contaminada deixa você sem proteção: saia da área primeiro e só desligue em ar limpo.`, level: 'alarm', step: null };
+          }
+        }
         break; }
       case 'poweroff':
         banner = 'OFF'; icons.off = true; fields = [F(''), F(''), F(''), F('')];
@@ -663,7 +697,7 @@ export function createFirmware(opts = {}) {
         act = activeAlarms(); kind = alarmKind(act);
         for (const g of GASES) if (act[g]) alarms.push({ gas: g, level: act[g].level, value: display[g], latched: !!act[g].latched });
         icons.fan = true; icons.pump = false;
-        if (view) {
+        if (view && !kind) {
           state = 'peak';
           if (view === 'peak') { icons.peak = true; const o2p = Math.abs(peaks.O2min - 20.9) >= Math.abs(peaks.O2max - 20.9) ? peaks.O2min : peaks.O2max;
             fields = [F(fieldText('H2S', peaks.H2S)), F(fieldText('CO', peaks.CO)), F(fieldText('O2', o2p)), F(fieldText('LEL', peaks.LEL))]; }
@@ -671,7 +705,7 @@ export function createFirmware(opts = {}) {
           else if (view === 'stel') { icons.stel = true; fields = [F(enabled('H2S') ? fmtTox(stel.H2S) : ''), F(enabled('CO') ? fmtTox(stel.CO) : ''), F(''), F('')]; }
           else { banner = 'CLEAr'; icons.peak = true; icons.twa = true; icons.stel = true; fields = [F(''), F(''), F(''), F('')]; }
         } else {
-          fields = GASES.map((g) => F(fieldText(g), !!act[g]));
+          fields = GASES.map((g) => F(fieldText(g), act[g] ? ((act[g].level === 'low' || act[g].level === 'twa') ? 'slow' : 'fast') : false));
         }
         if (kind) {
           state = kind; icons.bell = true; backlight = true;
@@ -691,7 +725,8 @@ export function createFirmware(opts = {}) {
           if (settings.safeDisplay) icons.safe = true;
         }
         if (pumpFault) {
-          state = 'pumpfault'; icons.pump = blinkOn; icons.fan = true; icons.warn = true; banner = blinkOn ? 'PUMP' : null; backlight = true; icons.heart = false; leds.green = 0;
+          if (!kind) { state = 'pumpfault'; banner = blinkOn ? 'FAIL' : null; } // alarme de gás tem prioridade: leituras ficam visíveis
+          icons.pump = blinkOn; icons.fan = true; icons.warn = true; backlight = true; icons.heart = false; leds.green = 0;
           if (!kind) { const p = patternAt('fast', alarmT); buzz = { on: p.buzz, freq: 2900, pattern: 'fast', level: 1 }; leds.red = p.red ? 1 : 0; vib = p.vib; }
           alarms.push({ gas: 'PUMP', level: 'fault', value: null, latched: false });
         }
@@ -722,10 +757,10 @@ export function createFirmware(opts = {}) {
     if (!on) { leds = { red: 0, green: 0 }; buzz = { on: false, freq: 2900, pattern: null, level: 0 }; vib = vib && m !== 'off' ? vib : false; backlight = false; }
     const pumpRunning = on && !['boot', 'selftest', 'poweroff', 'depleted', 'pumpfail'].includes(m) && !(m === 'run' && pumpFault);
     if (!pumpRunning) icons.fan = icons.fan && on; // ventoinha parada (ícone estático)
-    const lcd = { on, all, backlight, fields, labels: true, icons, banner };
+    const lcd = { on, all, backlight, fields, labels: true, icons, banner, alarmT };
     fw.state = state;
     fw.out = {
-      lcd, leds, buzzer: buzz, vibrate: !!vib, backlight, pump: { running: pumpRunning, fault: (m === 'run' && pumpFault) || m === 'pumpfail', strain: pumpRunning && lastCtx.inletBlocked },
+      lcd, leds, buzzer: buzz, vibrate: !!vib, backlight, pump: { running: pumpRunning, fault: (m === 'run' && pumpFault) || m === 'pumpfail' || (m === 'cal-fail' && !!cal.flowFail), strain: pumpRunning && lastCtx.inletBlocked },
       readings: { ...display }, raw: { ...raw }, peaks: { H2S: peaks.H2S, CO: peaks.CO, O2: Math.abs(peaks.O2min - 20.9) >= Math.abs(peaks.O2max - 20.9) ? peaks.O2min : peaks.O2max, LEL: peaks.LEL, O2min: peaks.O2min, O2max: peaks.O2max },
       twa: { ...twa }, stel: { ...stel }, alarms, state, mode: m, view, hud, battery, calDays: calDays(), bumpDue: bumpDue(),
       time: clock, simTime: T, pumpFault, lelLocked,
@@ -733,11 +768,30 @@ export function createFirmware(opts = {}) {
   }
   const fmtTox = (v) => (v < 10 ? (Math.round(v * 10) / 10).toFixed(1) : String(Math.round(v)));
 
+  const rd = (g) => { const t = fieldText(g); return t === 'OL' ? `${NAMES[g]} acima da escala (OL)` : `${NAMES[g]} ${g === 'O2' ? fmtN(display.O2, 1) : t} ${UNITS[g]}`; };
   function runHud(kind, act, state) {
-    const rd = (g) => `${NAMES[g]} ${g === 'O2' ? fmtN(display.O2, 1) : fieldText(g)} ${UNITS[g]}`;
-    if (pumpFault) return { title: 'FALHA DA BOMBA — entrada obstruída', text: lastCtx.inletBlocked
-      ? 'A bomba parou porque a entrada/mangueira está bloqueada: o aparelho NÃO está amostrando o ar. Desobstrua a entrada (tire o dedo, abra a válvula, desdobre a mangueira) e toque o botão.'
-      : 'Fluxo liberado. Toque o botão para confirmar e voltar a monitorar. Lembre: sem fluxo, as leituras não representam a atmosfera.', level: 'alarm', step: null };
+    if (pumpFault) {
+      if (kind) {
+        const g = runHudBase(kind, act, state);
+        return { title: `${g.title} + FALHA DA BOMBA`, text: `${g.text} ATENÇÃO: a bomba parou (entrada obstruída) — a leitura está CONGELADA e não acompanha mais a atmosfera. Saia da área; desobstrua a entrada e confirme com o botão só em local seguro.`, level: 'alarm', step: null };
+      }
+      return lastCtx.inletBlocked
+        ? { title: 'FALHA DA BOMBA — entrada obstruída', text: 'A bomba parou porque a entrada/mangueira está bloqueada: o aparelho NÃO está amostrando o ar e a leitura está congelada. Desobstrua a entrada (tire o dedo, abra a válvula, desdobre a mangueira) e toque o botão.', level: 'alarm', step: null }
+        : { title: 'FALHA DA BOMBA — fluxo liberado: toque o botão', text: 'A entrada foi desobstruída. Toque o botão para confirmar e voltar a monitorar. Lembre: enquanto não houver fluxo, as leituras não representam a atmosfera.', level: 'alarm', step: null };
+    }
+    if (bump.guided || bump.result) return bumpHud(kind, act);
+    return runHudBase(kind, act, state);
+  }
+  function bumpHud(kind, act) {
+    const got = GASES.filter((g) => enabled(g) && bump.hits[g]).map((g) => NAMES[g]);
+    const miss = GASES.filter((g) => enabled(g) && !bump.hits[g]).map((g) => NAMES[g]);
+    if (bump.result === 'pass') return { title: 'BUMP OK', text: 'Todos os sensores responderam e os alarmes sonoro, visual e vibratório funcionaram. Aparelho liberado para uso hoje.', level: 'ok', step: 'Bump 3/3' };
+    if (bump.result === 'fail') return { title: 'BUMP REPROVADO', text: `Não alarmou: ${bump.failed.map((g) => NAMES[g]).join(', ')}. ${kind ? 'Feche a válvula e retire a mangueira. ' : ''}Não use o aparelho — faça a calibração completa (toque o botão para confirmar).`, level: 'alarm', step: 'Bump 3/3' };
+    if (bump.allHit) return { title: 'Bump test: retire o gás', text: `Todos os sensores alarmaram${kind ? ' (os alarmes continuam até o gás sair)' : ''}. Feche a válvula e retire a mangueira; quando as leituras voltarem ao normal aparece BUMP OK.`, level: kind ? 'warn' : 'info', step: 'Bump 2/3' };
+    if (kind) return { title: 'Bump test: alarmes disparando (esperado)', text: `Isto é o teste, não uma emergência: confira sirene, LEDs vermelhos e vibração. Já alarmaram: ${got.join(', ') || '—'}. Faltam: ${miss.join(', ')}.`, level: 'warn', step: 'Bump 2/3' };
+    return { title: 'Bump test: aplique o gás', text: `Conecte a mangueira do cilindro e abra a válvula. Cada sensor deve entrar em alarme (H₂S/LEL acima do ALTO, CO acima do BAIXO, O₂ abaixo de 19,5 %). ${got.length ? `Já alarmaram: ${got.join(', ')}.` : ''}`.trim(), level: 'info', step: 'Bump 1/3' };
+  }
+  function runHudBase(kind, act, state) {
     if (kind) {
       const gs = Object.keys(act);
       if (kind === 'multi') {

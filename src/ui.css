@@ -83,7 +83,7 @@
 /* ---------- painéis ---------- */
 .gx-panel { top: 78px; max-height: calc(100vh - 78px - 104px); display: flex; flex-direction: column; overflow: hidden; transition: transform .38s cubic-bezier(.2,.8,.2,1), opacity .3s; }
 .gx-left { left: 12px; width: 320px; }
-.gx-right { right: 12px; width: 352px; }
+.gx-right { right: 12px; width: 352px; max-height: calc(100vh - 78px - 160px); }
 .gx-left.collapsed { transform: translateX(calc(-100% - 16px)); opacity: 0; pointer-events: none; }
 .gx-right.collapsed { transform: translateX(calc(100% + 16px)); opacity: 0; pointer-events: none; }
 .gx-ph { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 10px 8px 14px; flex: none; }
@@ -107,7 +107,7 @@
 .gx-hud-top { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; position: relative; z-index: 1; }
 .gx-state { white-space: nowrap; flex: none; display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px 0 7px; border-radius: 99px; font-size: 11.5px; font-weight: 600; background: color-mix(in srgb, var(--lc) 15%, transparent); color: var(--gx-text); }
 .gx-state i { width: 7px; height: 7px; border-radius: 50%; background: var(--lc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--lc) 22%, transparent); }
-.gx-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--gx-text-3); font-variant-numeric: tabular-nums; }
+.gx-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: .02em; text-transform: none; font-weight: 600; font-size: 11px; color: var(--gx-text-3); font-variant-numeric: tabular-nums; }
 .gx-outs { margin-left: auto; display: flex; gap: 2px; }
 .gx-outs span { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px; color: var(--gx-text-3); opacity: .45; transition: all .15s; }
 .gx-outs .gx-ic { width: 14px; height: 14px; }
@@ -117,10 +117,10 @@
 .gx-outs span[data-o="pump"].on .gx-ic { animation: gxSpin 1.2s linear infinite; }
 .gx-outs span[data-o="pump"].bad { opacity: 1; color: var(--gx-alarm); background: color-mix(in srgb, var(--gx-alarm) 14%, transparent); }
 @keyframes gxSpin { to { transform: rotate(360deg); } }
-.gx-hud-k { position: relative; z-index: 1; font-size: 10px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--gx-text-3); margin-bottom: 2px; }
+.gx-hud-k { display: flex; justify-content: space-between; gap: 8px; position: relative; z-index: 1; font-size: 10px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--gx-text-3); margin-bottom: 2px; }
 .gx-hud-title { position: relative; z-index: 1; margin: 0 0 4px; font-size: 16px; font-weight: 650; letter-spacing: -0.01em; line-height: 1.25; }
 .gx-hud-text { position: relative; z-index: 1; margin: 0; font-size: 13px; color: var(--gx-text-2); line-height: 1.45; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; cursor: pointer; }
-.gx-hud.expanded .gx-hud-text { -webkit-line-clamp: unset; }
+.gx-hud.expanded .gx-hud-text, .gx-hud[data-level="alarm"] .gx-hud-text { -webkit-line-clamp: unset; }
 
 /* ---------- leituras ---------- */
 .gx-sec-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 16px 2px 8px; font-size: 11px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase; color: var(--gx-text-3); }
@@ -132,12 +132,15 @@
 .gx-gas[data-st="low"] { --sc: var(--gx-warn); border-color: color-mix(in srgb, var(--gx-warn) 55%, transparent); background: color-mix(in srgb, var(--gx-warn) 10%, var(--gx-glass-3)); }
 .gx-gas[data-st="high"], .gx-gas[data-st="ol"] { --sc: var(--gx-alarm); border-color: color-mix(in srgb, var(--gx-alarm) 65%, transparent); background: color-mix(in srgb, var(--gx-alarm) 13%, var(--gx-glass-3)); animation: gxBlink 0.6s steps(2) infinite; }
 @keyframes gxBlink { 50% { border-color: transparent; } }
-.gx-gas-h { display: flex; align-items: center; gap: 5px; }
+.gx-gas-h { display: flex; align-items: center; gap: 5px; white-space: nowrap; min-width: 0; }
+.gx-gas-u { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .gx-gas-n { font-weight: 700; font-size: 13px; }
 .gx-gas-n::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 2px; background: var(--gc); margin-right: 6px; vertical-align: 1px; }
 .gx-gas-u { font-size: 11px; color: var(--gx-text-3); }
-.gx-chip { margin-left: auto; font-size: 10px; font-weight: 700; letter-spacing: .05em; padding: 2px 6px; border-radius: 5px; color: var(--sc); background: color-mix(in srgb, var(--sc) 14%, transparent); }
+.gx-chip { flex: none; margin-left: auto; font-size: 10px; font-weight: 700; letter-spacing: .05em; padding: 2px 6px; border-radius: 5px; color: var(--sc); background: color-mix(in srgb, var(--sc) 14%, transparent); }
 .gx-gas[data-st="off"] .gx-chip { background: transparent; }
+.gx-gas[data-st="cal"] { --sc: var(--gx-info); }
+.gx-gas[data-st="cal"] .gx-chip { color: var(--gx-text-2); background: var(--gx-track); }
 .gx-gas[data-st="high"] .gx-chip, .gx-gas[data-st="ol"] .gx-chip { color: #fff; background: var(--gx-alarm); }
 .gx-gas[data-st="low"] .gx-chip { color: #1d1400; background: var(--gx-warn); }
 .gx-gas-vr { display: flex; align-items: flex-end; justify-content: space-between; gap: 4px; margin: 5px 0 7px; min-width: 0; }
@@ -268,6 +271,7 @@
 .gx-done { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; background: color-mix(in srgb, var(--gx-ok) 13%, transparent); }
 .gx-done > .gx-ic { width: 22px; height: 22px; color: var(--gx-ok); stroke-width: 2.4; }
 .gx-done div { display: flex; flex-direction: column; } .gx-done span { font-size: 11.5px; color: var(--gx-text-2); }
+.gx-rdepth { margin-top: 10px; }
 .gx-levels { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 10px; }
 .gx-lv { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; padding: 5px 0 6px; border-radius: 7px; background: var(--gx-track); border: 1px solid transparent; }
 .gx-lv b { font-size: 11px; font-weight: 700; } .gx-lv small { font-size: 9.5px; color: var(--gx-text-2); }
@@ -328,7 +332,7 @@
 .gx-act.on small { color: var(--gx-text-2); }
 
 /* ---------- toast ---------- */
-.gx-toast { left: 50%; bottom: 96px; transform: translate(-50%, 8px); padding: 8px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 600; background: rgba(16, 19, 25, .9); color: #f1f3f6; opacity: 0; pointer-events: none; transition: all .25s; white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; box-shadow: 0 10px 30px -10px rgba(0,0,0,.5); }
+.gx-toast { left: 50%; bottom: 160px; transform: translate(-50%, 8px); padding: 8px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 600; background: rgba(16, 19, 25, .9); color: #f1f3f6; opacity: 0; pointer-events: none; transition: all .25s; white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; box-shadow: 0 10px 30px -10px rgba(0,0,0,.5); }
 .gx-toast.on { opacity: 1; transform: translate(-50%, 0); }
 .gx-toast[data-kind="warn"] { background: #8a2a1e; }
 
@@ -401,6 +405,14 @@
   .gx-act.primary { min-width: 0; }
   .gx-toast { top: 118px; bottom: auto; white-space: normal; text-align: center; width: max-content; max-width: calc(100vw - 32px); transform: translate(-50%, -8px); }
   .gx-gas-v { font-size: 26px; }
+}
+/* celular: botões fixos do orquestrador (demo.js / zoom.js) acima da barra de ações, sem sobrepor */
+@media (max-width: 760px) {
+  html.gx-root .dm-wrap { left: 8px; right: auto; transform: none; bottom: 212px; max-width: calc(100vw - 196px); }
+  html.gx-root .dm-btn { padding: 8px 12px; font-size: 12.5px; line-height: 1.2; white-space: normal; text-align: left; }
+  html.gx-root .dm-skip { padding: 8px 10px; font-size: 12.5px; }
+  html.gx-root .zm-btn { right: 8px; bottom: 212px; padding: 8px 12px; font-size: 12.5px; }
+  html.gx-root .dm-cap { bottom: 272px; }
 }
 @media (max-width: 400px) {
   .gx-top h1 .gx-h1-a { font-size: 12.5px; }

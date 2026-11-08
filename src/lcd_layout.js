@@ -65,7 +65,7 @@ function digitPaths(x0, y0) {
     [c - CG / 2, hm], [c - CG / 2 - tg / 2.6, hm + tg / 2], [TV / 2 + g * 1.25 + tg / 2, hm + tg / 2]];
   const g2 = mx(g1);
   // ponto decimal (entre este dígito e o próximo, na linha de base)
-  const dpx = w + (PITCH - DIGIT_BOX) / 2 - 1, dps = TH + 3;
+  const dpx = w + (PITCH - w) / 2, dps = TH + 1;  // quadrado da espessura do segmento, centrado no vão
   const dp = [[dpx - dps / 2, h - dps], [dpx + dps / 2, h - dps], [dpx + dps / 2, h], [dpx - dps / 2, h]];
   return { a1: P(a1), a2: P(a2), d1: P(d1), d2: P(d2), f: P(f), b: P(b), e: P(e), c: P(cc), g1: P(g1, 6), g2: P(g2, 6), dp: P(dp, 3) };
 }
@@ -245,18 +245,26 @@ export function buildElements() {
   const fan = { draw(ctx, a = 0) { ctx.fill(at(fp, FX, FY, 1, a)); }, rect: [FX - 70, FY - 70, 140, 140] };
   els.set(FAN_ID, { draw: (ctx) => fan.draw(ctx, 0), ghost: false });
   // banner: n células contíguas centradas na linha de cima (sem fantasma próprio)
-  const bannerCache = new Map();
-  function bannerSlot(n, i) {
-    const k = n + ':' + i;
-    if (!bannerCache.has(k)) {
-      const pitch = Math.min(PITCH, (W - 90) / n);
-      const total = (n - 1) * pitch + DIGIT_BOX;
-      const x0 = (W - total) / 2 + i * pitch;
-      const id = `bn${n}_${i}`;
-      for (const [sg, p] of Object.entries(digitPaths(x0, FIELDS[0].top))) els.set(id + sg, { ...fillEl(p), ghost: false });
-      bannerCache.set(k, id);
+  // banner: células contíguas centradas na linha de cima (sem fantasma próprio).
+  // joins[i]=true → a célula i encosta na anterior compartilhando a perna (M = ∩ + ┐, W = U + ┘).
+  const cellCache = new Map();
+  function cell(x0) {
+    const k = Math.round(x0 * 2);
+    if (!cellCache.has(k)) {
+      const id = `bn${k}_`;
+      for (const [sg, p] of Object.entries(digitPaths(k / 2, FIELDS[0].top))) els.set(id + sg, { ...fillEl(p), ghost: false });
+      cellCache.set(k, id);
     }
-    return bannerCache.get(k);
+    return cellCache.get(k);
   }
-  return { els, slot, bannerSlot, fan };
+  function bannerSlots(joins) {
+    const JOIN = DW - TV;  // avanço de uma célula "colada"
+    let pitch = PITCH;
+    const span = (p) => joins.reduce((x, j, i) => (i ? x + (j ? JOIN : p) : x), 0) + DIGIT_BOX;
+    if (span(pitch) > W - 90) pitch = Math.max(JOIN + 8, pitch - (span(pitch) - (W - 90)) / Math.max(1, joins.filter((j, i) => i && !j).length));
+    let x = (W - span(pitch)) / 2; const ids = [];
+    joins.forEach((j, i) => { if (i) x += j ? JOIN : pitch; ids.push(cell(x)); });
+    return ids;
+  }
+  return { els, slot, bannerSlots, fan };
 }

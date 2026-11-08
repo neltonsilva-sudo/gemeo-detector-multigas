@@ -82,8 +82,8 @@ export function makeModelLabel() {
     g.font = `italic ${w} ${size}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
     for (const ch of txt) { g.fillText(ch, x, base); x += g.measureText(ch).width + spacing * PX; }
   };
-  g.fillStyle = '#121212';
-  put('G', 300, cap, 0.02); put('AS', 300, sc, 0.02); put('A', 300, cap, 0.02); put('LERT', 300, sc, 0.02);
+  g.fillStyle = '#050505';
+  put('G', 400, cap, 0.02); put('AS', 400, sc, 0.02); put('A', 400, cap, 0.02); put('LERT', 400, sc, 0.02);
   put('M', 800, cap, 0.0); put('AX', 800, sc, 0.0); x += 0.75 * PX; put('XT', 800, cap * 1.05, 0.0); x += 0.25 * PX;
   put('II', 700, cap * 1.0, 0.05);
   // losango genérico (no lugar de logotipo), branco

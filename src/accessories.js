@@ -43,7 +43,7 @@ export function buildKit() {
       cyl: { p: [0.52, 0, -0.06], ry: -0.75 },
       reg: { mounted: true, ry: -1.05 },
       cap: { p: [0.62, 0.0154, -0.03], rx: Math.PI },
-      cup: { p: [0.66, 0, -0.16] },
+      cup: { p: [0.70, 0, 0.0] },
       probe: { base: [0.33, 0.13], dir: -0.12 /* aponta para +x */, roll: 0 },
     },
   };
@@ -140,17 +140,17 @@ export function buildKit() {
     hoseStart(); hose.end = null;
     const s = hose.start.pos, cp = cyl.group.position;
     // sobe, faz a curva e desce pelo lado direito/frente do cilindro até um laço no chão
-    const out = V(-Math.sin(L.default.reg.ry), 0, -Math.cos(L.default.reg.ry)).normalize(); // lado oposto ao manômetro
+    const out = V(0.9, 0, -0.45).normalize(); // atrás-direita, lado oposto ao manômetro e ao aparelho
     const pts = [s.clone(), s.clone().add(V(0, 0.05, 0)), s.clone().add(V(out.x * 0.05, 0.06, out.z * 0.05)), s.clone().add(V(out.x * 0.09, 0.0, out.z * 0.09)),
       V(cp.x + out.x * 0.08, 0.15, cp.z + out.z * 0.08), V(cp.x + out.x * 0.09, 0.02, cp.z + out.z * 0.09)];
-    const c = V(cp.x - 0.02 + out.x * 0.14, 0.004, cp.z + out.z * 0.14), R = 0.055;
+    const c = V(cp.x + out.x * 0.24, 0.004, cp.z + out.z * 0.24), R = 0.05;
     for (let k = 0; k <= 26; k++) { const a = Math.PI * 1.1 + k / 26 * Math.PI * 2.2; pts.push(V(c.x + Math.cos(a) * R * (1 - k * 0.005), 0.004 + k * 0.0003, c.z + Math.sin(a) * R * (1 - k * 0.005))); }
     hose.initAlong(pts); hose.settle(3.5);
   }
   function initLineLying() {
     lineStart(); line.end = null;
     const s = line.start.pos, d = line.start.dir.clone().setY(0).normalize();
-    const side = V(-d.z, 0, d.x);
+    const side = V(d.z, 0, -d.x); // curva para a frente (+z), longe do quadro hero
     // a linha sai da base da empunhadura, faz uma curva para a frente e volta para a direita (longe do aparelho)
     const pts = [s.clone(), s.clone().addScaledVector(d, 0.03).setY(0.012)];
     for (let k = 1; k <= 24; k++) { const a = k / 24 * Math.PI * 1.15; pts.push(s.clone().addScaledVector(d, 0.03 + Math.sin(a) * 0.06).addScaledVector(side, (1 - Math.cos(a)) * 0.06).setY(0.004)); }
@@ -271,6 +271,14 @@ export function buildKit() {
     }
   }
   let settledFor = false;
+
+  // transparentes não entram em passadas com material de substituição (G-buffer do GTAO, profundidade de contato):
+  // senão o AO "suja" a mangueira/vidros de cinza granulado
+  group.traverse((o) => {
+    if (!o.isMesh || !o.material || !o.material.userData.noShadowCast) return;
+    o.onBeforeRender = (r, sc, cam, geo, mat) => { if (mat !== o.material) { o.userData._dr = geo.drawRange.count; geo.setDrawRange(0, 0); } };
+    o.onAfterRender = (r, sc, cam, geo) => { if (o.userData._dr !== undefined) { geo.setDrawRange(0, o.userData._dr); o.userData._dr = undefined; } };
+  });
 
   applyDefault();
 

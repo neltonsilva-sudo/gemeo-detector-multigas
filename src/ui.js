@@ -4,7 +4,7 @@ import {
   GASES, GAS_LABEL, GAS_UNIT, GAS_COLOR, DEFAULT_LIMITS, getLimit, setLimit, resetLimits, getToggle, setToggle,
   phaseOf, PHASE_LABEL, measuring, alarmsByGas, readingsOf, fmtGas, fmtNum, normLogEntry, fmtClock,
 } from './ui_fw.js';
-import { ROUTINES, createRoutineEngine, LEVEL_DWELL } from './ui_routines.js';
+import { ROUTINES, createRoutineEngine, LEVEL_DWELL, TRANSPORT } from './ui_routines.js';
 
 const CAMS = [
   ['hero', 'Herói'], ['ref1', 'Foto'], ['front', 'Frente'], ['back', 'Trás'], ['lcd', 'Visor'], ['kit', 'Kit'], ['ref2', 'Kit · foto'],
@@ -96,21 +96,20 @@ export function createUI(ctx) {
       <div class="gx-hud" data-level="info" aria-live="polite">
         <div class="gx-hud-top">
           <span class="gx-state" data-k="state"><i></i><span>Desligado</span></span>
-          <span class="gx-step" data-k="step" hidden></span>
           <span class="gx-outs" aria-label="Saídas do aparelho">
             <span data-o="buzzer" title="Sirene">${icon('bell')}</span><span data-o="led" title="LED de alarme">${icon('led')}</span>
             <span data-o="vibrate" title="Vibração">${icon('vibrate')}</span><span data-o="pump" title="Bomba">${icon('fan')}</span>
           </span>
         </div>
-        <div class="gx-hud-k">O aparelho diz</div>
+        <div class="gx-hud-k"><span>O aparelho diz</span><span class="gx-step" data-k="step" hidden></span></div>
         <h2 class="gx-hud-title" data-k="hud-title">Aparelho desligado</h2>
         <p class="gx-hud-text" data-k="hud-text"></p>
       </div>
       <div class="gx-sec-h"><span>Leituras</span><span class="gx-sec-s" data-k="pumpst">bomba parada</span></div>
       <div class="gx-gases">
         ${GASES.map((g) => `
-        <div class="gx-gas" data-gas="${g}" data-st="off" style="--gc:${GAS_COLOR[g]}">
-          <div class="gx-gas-h"><span class="gx-gas-n">${GAS_LABEL[g]}</span><span class="gx-gas-u">${GAS_UNIT[g]}</span><span class="gx-chip" data-f="chip">—</span></div>
+        <div class="gx-gas" data-gas="${g}" data-st="off" style="--gc:${GAS_COLOR[g]}"${g === 'LEL' ? ' title="LEL: % do limite inferior de explosividade (LIE) do metano"' : ''}>
+          <div class="gx-gas-h"><span class="gx-gas-n">${GAS_LABEL[g]}</span><span class="gx-gas-u">${g === 'LEL' ? '% LIE' : GAS_UNIT[g]}</span><span class="gx-chip" data-f="chip">—</span></div>
           <div class="gx-gas-vr"><span class="gx-gas-v gx-num" data-f="v">—</span><span class="gx-gas-pk gx-num" data-f="pk"></span></div>
           <div class="gx-bar" aria-hidden="true">${g === 'O2' ? '<span class="gx-band"></span>' : ''}<i data-f="fill"></i><b class="lo" data-f="lo"></b><b class="hi" data-f="hi"></b></div>
           <div class="gx-gas-f gx-num" data-f="lim"></div>
@@ -350,7 +349,7 @@ export function createUI(ctx) {
           </dl>
         </div>
       </div>
-      <p class="gx-note">${icon('info')}<span>NR-33: avalie <b>de cima para baixo</b>, 1 m por vez. Em cada nível, espere o gás percorrer a mangueira (~2 s por metro) e o sensor estabilizar.</span></p>`;
+      <p class="gx-note">${icon('info')}<span>A NR-33 exige avaliar a atmosfera antes da entrada. Boa prática de procedimento: descer a sonda <b>de cima para baixo, 1 m por vez</b>, esperando em cada nível o transporte pela mangueira (≈ 1 s + 0,7 s por metro) e 1,5 × o tempo de resposta do sensor mais lento (LEL, T90 ≈ 20 s).</span></p>`;
     const inp = K(ctlConf, 'depth');
     inp.addEventListener('input', () => { world.setDepth ? world.setDepth(+inp.value) : (world.depth = +inp.value); updateConf(); });
   }
@@ -358,9 +357,10 @@ export function createUI(ctx) {
     if (!ctlConf) return;
     const d = world.depth ?? 0; const y = 30 + d * 26;
     setText(K(ctlConf, 'depth-v'), `${fmtNum(d)} m`); setText(K(ctlConf, 'hose-v'), `${fmtNum(d + 1)} m`);
-    setText(K(ctlConf, 'delay-v'), `≈ ${Math.round(2 * (d + 1))} s`); setText(K(ctlConf, 'wait-v'), `${Math.round(LEVEL_DWELL(Math.round(d)))} s`);
+    setText(K(ctlConf, 'delay-v'), `≈ ${fmtNum(TRANSPORT(d + 1))} s`); setText(K(ctlConf, 'wait-v'), `${Math.round(LEVEL_DWELL(Math.round(d)))} s`);
     K(ctlConf, 'probe-line').setAttribute('y2', y); K(ctlConf, 'probe-dot').setAttribute('cy', y);
     const inp = K(ctlConf, 'depth'); if (+inp.value !== d && document.activeElement !== inp) inp.value = d;
+    const rp = R.panes.roteiros; const ri = K(rp, 'rdepth'); if (ri) { if (+ri.value !== d && document.activeElement !== ri) ri.value = d; setText(K(rp, 'rdepth-v'), `${fmtNum(d)} m`); }
   }
   const ctlMan = $(scenPane, '[data-ctl="manual"]');
   if (ctlMan) {
@@ -417,6 +417,8 @@ export function createUI(ctx) {
         const st = i < eng.idx || eng.finished ? 'done' : i === eng.idx ? 'cur' : 'todo';
         return `<li class="gx-st ${st}"><span class="gx-st-n">${st === 'done' ? icon('check') : i + 1}</span>
           <div class="gx-st-b"><b>${esc(s.title)}</b>${st === 'cur' ? `<p>${esc(s.hint || '')}</p>
+            ${s.depth ? `<label class="gx-field gx-rdepth"><span>Profundidade da sonda <b class="gx-num" data-k="rdepth-v">${fmtNum(world.depth ?? 0)} m</b></span>
+              <input type="range" min="0" max="6" step="0.5" value="${world.depth ?? 0}" data-k="rdepth" aria-label="Profundidade da sonda em metros"></label>` : ''}
             ${s.levels ? '<div class="gx-levels" data-k="levels"></div>' : ''}
             <div class="gx-st-info" data-k="info"></div>
             ${s.choices ? `<div class="gx-choices">${s.choices.map((c) => `<button class="gx-btn sm" data-choice="${c.value}">${c.label}</button>`).join('')}</div>` : ''}
@@ -433,7 +435,7 @@ export function createUI(ctx) {
   }
   function markStepDone() { const li = $(rotPane, '.gx-st.cur'); if (li) li.classList.add('ok'); }
   function renderLevels() {
-    const box = K(rotPane, 'levels'); if (!box) return; const st = eng.st; const lv = st.levels;
+    const box = K(rotPane, 'levels'); if (!box) return; const st = eng.st; const lv = eng.profile?.levels;
     box.innerHTML = [0, 1, 2, 3, 4, 5, 6].map((d) => {
       const L = lv?.[d]; const req = LEVEL_DWELL(d);
       const pct = L ? Math.min(1, L.dwell / req) : 0;
@@ -447,6 +449,11 @@ export function createUI(ctx) {
         (lv || []).map((x, d) => (x.done && x.r ? `<tr${x.alarm ? ' class="bad"' : ''}><td>${d}</td><td>${fmtGas('H2S', x.r.H2S)}</td><td>${fmtGas('CO', x.r.CO)}</td><td>${fmtGas('O2', x.r.O2)}</td><td>${x.r.ol ? 'OL' : fmtGas('LEL', x.r.LEL)}</td></tr>` : '')).join('')}</tbody></table>`);
     }
   }
+  rotPane.addEventListener('input', (e) => {
+    const i = e.target.closest('[data-k="rdepth"]'); if (!i) return;
+    if (world.scenario !== 'confinado') selectScenario('confinado');
+    world.setDepth ? world.setDepth(+i.value) : (world.depth = +i.value); updateConf();
+  });
   rotPane.addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.start) { eng.start(b.dataset.start); if (b.dataset.start === 'confinado') say('Dica: use a escala 10× para acelerar as esperas'); return; }
@@ -475,7 +482,7 @@ export function createUI(ctx) {
         <tbody>${GASES.map((g) => `<tr><th style="--gc:${GAS_COLOR[g]}"><i></i>${GAS_LABEL[g]}<small>${GAS_UNIT[g]}</small></th>${kinds.map((k) => (DEFAULT_LIMITS[g][k] == null ? '<td class="na">—</td>' :
           `<td><input type="number" inputmode="decimal" step="${g === 'O2' ? 0.1 : 1}" value="${getLimit(fw, g, k)}" data-lim="${g}:${k}" aria-label="${GAS_LABEL[g]} ${k.toUpperCase()}"></td>`)).join('')}</tr>`).join('')}</tbody>
       </table>
-      <p class="gx-note">${icon('info')}LOW = 1º nível (sirene lenta) · HIGH = 2º nível (sirene rápida) · TWA = média ponderada de 8 h · STEL = exposição de curta duração (15 min). O₂ alarma abaixo do LOW e acima do HIGH.</p>
+      <p class="gx-note">${icon('info')}<span>LOW = 1º nível (sirene lenta) · HIGH = 2º nível (sirene rápida) · TWA = média ponderada de 8 h · STEL = exposição de curta duração (15 min). O₂ alarma abaixo do LOW e acima do HIGH. LEL = % do limite inferior de explosividade (% LIE). A NR-33 considera deficiente &lt; 19,5 % e enriquecida &gt; 23 % de O₂; o padrão do aparelho é 23,5 % — em espaço confinado, ajuste o HIGH do O₂ para 23,0.</span></p>
       <div class="gx-row"><button class="gx-btn ghost sm" data-k="lim-reset">${icon('restart')}Restaurar padrões</button></div>
       <div class="gx-sec-h"><span>Opções do aparelho</span></div>
       ${[['latch', 'Trava de alarme', 'O alarme continua até ser reconhecido com o botão, mesmo depois que o gás sumir.'],
@@ -595,6 +602,11 @@ export function createUI(ctx) {
       if (!S.collapsed.right) r = right.getBoundingClientRect().left;
       b = dock.getBoundingClientRect().top;
     }
+    // botões fixos do orquestrador (demonstração / tela de perto) também limitam a área livre
+    for (const n of document.querySelectorAll('.dm-wrap, .dm-btn, .zm-btn')) {
+      const rb = n.getBoundingClientRect(); if (!rb.height || rb.top < H * 0.5) continue;
+      if (rb.left < r && rb.right > l) b = Math.min(b, rb.top);
+    }
     const fw_ = r - l, fh_ = b - t;
     // projeção do aparelho (sem deslocamento, zoom 1) → centraliza e dimensiona na área livre
     const box = deviceBoxPx(W, H);
@@ -670,10 +682,11 @@ export function createUI(ctx) {
     const r = S.readings; const al = S.alarms;
     for (const g of GASES) {
       const x = R.gas[g]; const a = al[g]; const rv = r[g];
-      const st = !on ? 'off' : rv.ol ? 'ol' : a ? (a.rank >= 2 ? 'high' : 'low') : 'ok';
+      const calLike = S.phase === 'cal' || S.phase === 'bump';
+      const st = !on ? 'off' : rv.ol ? 'ol' : a ? (a.rank >= 2 ? 'high' : 'low') : calLike ? 'cal' : 'ok';
       setAttr(x.n, 'data-st', st);
       setText(x.v, !on ? '—' : rv.ol ? 'OL' : rv.err ? 'ERR' : fmtGas(g, rv.v));
-      setText(x.chip, !on ? '—' : rv.ol ? 'OL' : a ? LEVEL_TXT[a.level] || a.level.toUpperCase() : 'OK');
+      setText(x.chip, !on ? '—' : rv.ol ? 'OL' : a ? LEVEL_TXT[a.level] || a.level.toUpperCase() : calLike ? (S.phase === 'cal' ? 'CAL' : 'BUMP') : 'OK');
       const lo = getLimit(fw, g, 'low'), hi = getLimit(fw, g, 'high');
       const [b0, b1] = g === 'O2' ? [14, 27] : g === 'LEL' ? [0, 100] : [0, Math.max(hi * 2, lo * 2)];
       const P = (v) => Math.max(0, Math.min(1, (v - b0) / (b1 - b0)));

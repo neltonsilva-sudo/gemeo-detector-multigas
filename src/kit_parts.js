@@ -74,10 +74,10 @@ export function makeMaterials() {
   M.needle = new THREE.MeshPhysicalMaterial({ color: 0x0d0d0e, roughness: 0.35, clearcoat: 0.5 });
   // transparentes: mistura alfa própria (o fundo do estúdio é desenhado em outra passada → transmission veria preto)
   M.glass = glassify(new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.03, ior: 1.5, specularIntensity: 1 }), 0.02, 0.35);
-  M.clearPC = glassify(new THREE.MeshPhysicalMaterial({ color: 0x3a4044, roughness: 0.08, ior: 1.58, side: THREE.DoubleSide }), 0.07, 0.8, 0.22);
+  M.clearPC = glassify(new THREE.MeshPhysicalMaterial({ color: 0x3a4044, roughness: 0.08, ior: 1.58, side: THREE.DoubleSide }), 0.16, 0.85, 0.3);
   M.capPlastic = glassify(new THREE.MeshPhysicalMaterial({ color: 0xc4c9cc, roughness: 0.34, ior: 1.46, side: THREE.DoubleSide }), 0.5, 0.88, 0.5);
   M.filterEl = glassify(new THREE.MeshPhysicalMaterial({ color: 0xf4f4f0, roughness: 0.7 }), 0.32, 0.7, 0.4);
-  M.tygon = glassify(new THREE.MeshPhysicalMaterial({ color: 0xf6e6b0, roughness: 0.1, ior: 1.5, specularIntensity: 0.8, side: THREE.DoubleSide }), 0.1, 0.42, 0.7);
+  M.tygon = glassify(new THREE.MeshPhysicalMaterial({ color: 0xb8a874, roughness: 0.1, ior: 1.5, specularIntensity: 0.8, side: THREE.DoubleSide }), 0.12, 0.78, 0.7);
   M.tygon.userData.stageEnv = true;
   M.abs = new THREE.MeshPhysicalMaterial({ color: 0x1b1c1e, roughness: 0.48, clearcoat: 0.1 });
   return M;
