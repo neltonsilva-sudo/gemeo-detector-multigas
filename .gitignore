@@ -1,0 +1,5 @@
+shots/
+refs/
+docs/*.pdf
+compare.html
+.DS_Store

@@ -1,0 +1,38 @@
+// Ícones de traço (24×24, currentColor). Dono: agente UI.
+const P = {
+  power: '<path d="M12 3v8"/><path d="M6.3 6.6a8 8 0 1 0 11.4 0"/>',
+  inlet: '<circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21"/><path d="M6 6l12 12"/>',
+  valve: '<circle cx="12" cy="8" r="4.5"/><path d="M7.5 8h9M12 3.5v9M12 12.5V21M8 21h8"/>',
+  hose: '<path d="M9 15l6-6"/><path d="M11 6.5l1.2-1.2a4 4 0 0 1 5.6 5.6L16.6 12"/><path d="M13 17.5l-1.2 1.2a4 4 0 0 1-5.6-5.6L7.4 12"/>',
+  volume: '<path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>',
+  mute: '<path d="M11 5L6 9H3v6h3l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon: '<path d="M20.5 13.2A8.5 8.5 0 1 1 10.8 3.5a6.6 6.6 0 0 0 9.7 9.7z"/>',
+  auto: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor" stroke="none"/>',
+  left: '<path d="M15 18l-6-6 6-6"/>', right: '<path d="M9 18l6-6-6-6"/>', up: '<path d="M6 15l6-6 6 6"/>', down: '<path d="M6 9l6 6 6-6"/>',
+  check: '<path d="M20 6L9 17l-5-5"/>',
+  alert: '<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+  download: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  layers: '<path d="M12 3l9 4.5-9 4.5-9-4.5z"/><path d="M3 12l9 4.5 9-4.5"/><path d="M3 16.5l9 4.5 9-4.5"/>',
+  route: '<path d="M4 6.5l2 2 3.5-3.5M4 13.5l2 2 3.5-3.5"/><path d="M13 7h8M13 14h8M4 20h17"/>',
+  sliders: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
+  list: '<path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>',
+  gauge: '<path d="M12 14l4-4"/><path d="M3.3 19a10 10 0 1 1 17.4 0"/>',
+  camera: '<path d="M3 8h4l2-3h6l2 3h4v12H3z"/><circle cx="12" cy="13.5" r="3.6"/>',
+  bell: '<path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9"/><path d="M10.3 20.5a1.9 1.9 0 0 0 3.4 0"/>',
+  vibrate: '<rect x="8" y="4" width="8" height="16" rx="2"/><path d="M4.5 8v8M19.5 8v8M2 10v4M22 10v4"/>',
+  led: '<circle cx="12" cy="12" r="3.5"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
+  fan: '<circle cx="12" cy="12" r="1.8"/><path d="M12 10.2C11 6 12.5 3 15.5 3.6S16 9 12 10.2M13.8 12c4.2-1 7.2.5 6.6 3.5S15 16 13.8 12M12 13.8c1 4.2-.5 7.2-3.5 6.6S8 15 12 13.8M10.2 12C6 13 3 11.5 3.6 8.5S9 8 10.2 12"/>',
+  play: '<path d="M7 4.5v15l12-7.5z"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="1.5"/>',
+  restart: '<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"/><path d="M3 4v4.5h4.5"/>',
+  skip: '<path d="M5 5l9 7-9 7z"/><path d="M18 5v14"/>',
+  tank: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M12 3v11"/><circle cx="12" cy="15.5" r="1.6"/>',
+  close: '<path d="M6 6l12 12M18 6L6 18"/>',
+  shield: '<path d="M12 3l8 3v5.5c0 4.6-3.4 8.4-8 9.5-4.6-1.1-8-4.9-8-9.5V6z"/>',
+};
+export function icon(name, cls = '') {
+  return `<svg class="gx-ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || ''}</svg>`;
+}

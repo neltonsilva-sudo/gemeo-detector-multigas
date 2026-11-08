@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Versões do Gêmeo</title>
+<style>
+  :root { --bg:#f3f4f6; --card:#fff; --fg:#14171a; --mute:#5d6670; --line:#dde1e6; --acc:#f2c500; --accfg:#15181c; --ok:#1f8f4e; --warn:#b45309; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#0e1013; --card:#171a1f; --fg:#e8eaed; --mute:#9aa3ad; --line:#2a2f36; --ok:#4ade80; --warn:#fbbf24; } }
+  :root[data-theme="dark"] { --bg:#0e1013; --card:#171a1f; --fg:#e8eaed; --mute:#9aa3ad; --line:#2a2f36; --ok:#4ade80; --warn:#fbbf24; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.55 Inter, system-ui, -apple-system, sans-serif; }
+  .wrap { max-width:1080px; margin:auto; padding:32px 16px 64px; }
+  h1 { margin:0 0 6px; font-size:26px; letter-spacing:-.01em; }
+  .lead { margin:0 0 20px; color:var(--mute); max-width:70ch; }
+  .cta { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:32px; }
+  .cta a { text-decoration:none; padding:10px 16px; border-radius:10px; font-weight:600; border:1px solid var(--line); color:var(--fg); background:var(--card); }
+  .cta a.pri { background:var(--acc); color:var(--accfg); border-color:transparent; }
+  ol { list-style:none; margin:0; padding:0; position:relative; }
+  ol::before { content:""; position:absolute; left:11px; top:6px; bottom:6px; width:2px; background:var(--line); }
+  li { position:relative; padding-left:40px; margin-bottom:28px; }
+  li::before { content:""; position:absolute; left:4px; top:6px; width:16px; height:16px; border-radius:50%; background:var(--card); border:3px solid var(--acc); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; }
+  .head { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
+  .tag { font:700 13px ui-monospace, SFMono-Regular, Menlo, monospace; background:var(--acc); color:var(--accfg); padding:2px 8px; border-radius:6px; }
+  h2 { margin:0; font-size:17px; } time { color:var(--mute); font-size:13px; }
+  p { margin:8px 0 0; }
+  .shots { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:10px; margin-top:12px; }
+  .shots img { width:100%; display:block; border-radius:10px; border:1px solid var(--line); background:#fff; }
+  .scores { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .scores span { font-size:13px; padding:3px 10px; border-radius:999px; border:1px solid var(--line); font-variant-numeric:tabular-nums; }
+  .scores b.w { color:var(--warn); } .scores b.o { color:var(--ok); }
+  .note { color:var(--mute); font-size:13px; margin-top:32px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Gêmeo digital do detector multigás · versões</h1>
+  <p class="lead">Histórico de construção do simulador Three.js (tipo GasAlertMax XT II), feito por agentes construtores por item e julgado por inspetores cegos que comparam cada item lado a lado com fotos reais. Simulador didático independente, sem afiliação com o fabricante.</p>
+  <div class="cta">
+    <a class="pri" href="./?demo=1">▶ Abrir com demonstração narrada</a>
+    <a href="./">Abrir o simulador</a>
+  </div>
+  <ol>
+    <li><div class="card">
+      <div class="head"><span class="tag">v1.0</span><h2>Demonstração narrada (voz Francisca)</h2><time>08/11/2026 · 10:45</time></div>
+      <p>Tour guiado em 13 passos: partes do aparelho, autoteste, teste da bomba, leitura normal, alarme alto de H₂S, TWA/STEL, deficiência de O₂, atmosfera inflamável, kit de calibração, bump test e calibração. Narração com a voz Francisca (Microsoft Edge) ou a voz pt-BR do sistema, com legenda.</p>
+      <div class="shots"><img loading="lazy" src="versoes/v1.0_demo_narrada.jpg" alt="Demonstração narrada mostrando alarme alto de H₂S com legenda da Francisca"></div>
+    </div></li>
+    <li><div class="card">
+      <div class="head"><span class="tag">v0.4</span><h2>1ª rodada de inspeção cega</h2><time>08/11/2026 · 10:40</time></div>
+      <p>Todos os módulos integrados, sem erros de console, 60 fps. Inspetores independentes deram as notas abaixo (meta: 9). A 2ª rodada de correções foi interrompida.</p>
+      <div class="scores"><span>Carcaça <b class="w">6</b></span><span>Visor LCD <b class="w">7,5</b></span><span>Firmware <b class="w">7</b></span><span>Painel didático <b class="w">7</b></span><span>Render · não inspecionado</span><span>Kit · não inspecionado</span></div>
+      <div class="shots"><img loading="lazy" src="versoes/v0.4_rodada1.jpg" alt="Simulador com painel didático durante a partida"></div>
+    </div></li>
+    <li><div class="card">
+      <div class="head"><span class="tag">v0.3</span><h2>Alarmes, visor e kit de calibração</h2><time>08/11/2026 · 10:29</time></div>
+      <p>Firmware completo (97 testes), LCD segmentado com segmentos fantasma, LED vermelho com estrela de bloom, cilindro de 4 gases com rótulo genérico, regulador com manômetro, mangueira com física e sonda.</p>
+      <div class="shots"><img loading="lazy" src="versoes/v0.3_alarme_kit.jpg" alt="Alarme alto de H₂S"><img loading="lazy" src="versoes/v0.3_visor.jpg" alt="Visor LCD de perto"><img loading="lazy" src="versoes/v0.3_kit.jpg" alt="Composição do kit de calibração"></div>
+    </div></li>
+    <li><div class="card">
+      <div class="head"><span class="tag">v0.2</span><h2>Carcaça, LCD e painel didático</h2><time>08/11/2026 · 07:47</time></div>
+      <p>Carcaça modelada por campos de distância (SDF), luz de estúdio, primeiro LCD segmentado e o painel com cenários de gás.</p>
+      <div class="shots"><img loading="lazy" src="versoes/v0.2_carcaca_lcd.jpg" alt="Primeira carcaça com painel didático"></div>
+    </div></li>
+    <li><div class="card">
+      <div class="head"><span class="tag">v0.1</span><h2>Esqueleto</h2><time>08/11/2026 · 07:31</time></div>
+      <p>Contrato entre módulos, orquestrador, câmeras e peças provisórias para os 6 construtores trabalharem em paralelo.</p>
+      <div class="shots"><img loading="lazy" src="versoes/v0.1_esqueleto.jpg" alt="Esqueleto com peças provisórias"></div>
+    </div></li>
+  </ol>
+  <p class="note">As fotos de referência usadas nas comparações cegas não são publicadas aqui, por serem de terceiros.</p>
+</div>
+</body>
+</html>
