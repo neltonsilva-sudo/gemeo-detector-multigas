@@ -66,7 +66,7 @@ export function createUI(ctx) {
       <div class="gx-brand">
         <span class="gx-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.5l8.5 4.9v9.2L12 21.5 3.5 16.6V7.4z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7l4.3 2.5v5L12 17l-4.3-2.5v-5z" fill="currentColor"/></svg></span>
         <div class="gx-brand-t">
-          <h1><span class="gx-h1-a">Gêmeo Digital</span><span class="gx-dot">·</span><span class="gx-h1-b">Detector Multigás com bomba</span></h1>
+          <h1><span class="gx-h1-a">Detector Multigás com bomba</span></h1>
           <span class="gx-badge">${icon('info')}simulador didático, sem afiliação com o fabricante</span>
         </div>
       </div>
