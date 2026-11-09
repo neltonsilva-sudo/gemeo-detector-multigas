@@ -134,7 +134,8 @@ sim.zoom = showUI ? createZoom(sim) : null;
 sim.demo = showUI ? createDemo(sim) : null;
 if (Q.get('demo') === '1') document.addEventListener('pointerdown', () => { audio.unlock(); if (sim.demo && !sim.demo.running) sim.demo.start(Math.max(0, qn('cap', 1) - 1)); }, { once: true });
 if (Q.get('state')) sim.jump(Q.get('state'));
-else fw.power(true);
+// tela inicial: aparelho DESLIGADO — o usuário segura o botão ~3 s para ligar e ver o autoteste (?on=1 liga direto)
+else if (Q.get('on') === '1') fw.power(true);
 
 // ---------- laço ----------
 function resize() { stage.resize(innerWidth, innerHeight); }
