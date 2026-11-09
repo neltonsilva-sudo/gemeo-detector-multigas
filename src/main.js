@@ -81,10 +81,12 @@ function pick(ev) {
   const r = canvas.getBoundingClientRect();
   ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ndc, camera);
-  for (const h of ray.intersectObjects([device.group, kit.group], true)) {
-    let o = h.object; while (o && !o.userData.action) o = o.parent;
-    if (o) return o.userData.action;
-  }
+  const h = ray.intersectObjects([device.group, kit.group], true).find((x) => x.object.visible !== false);
+  if (!h) return null;
+  let o = h.object; while (o && !o.userData.action) o = o.parent;
+  if (o) return o.userData.action;
+  // clique no corpo do aparelho (sem ação própria) → centralizar nele
+  for (let q = h.object; q; q = q.parent) if (q === device.group) return 'device';
   return null;
 }
 let inletCovered = false;
@@ -93,7 +95,14 @@ canvas.addEventListener('pointerdown', (ev) => {
   const a = pick(ev); downAt = performance.now(); downPos = [ev.clientX, ev.clientY];
   if (a === 'button') { held = 'button'; fw.input.button = true; device.setButton(true); audio.click(); controls.enabled = false; canvas.setPointerCapture(ev.pointerId); }
   else if (a === 'inlet') { held = 'inlet'; inletCovered = true; controls.enabled = false; canvas.setPointerCapture(ev.pointerId); }
-  else if (a) { kit.handleAction(a); }
+  else if (a && a !== 'device') { kit.handleAction(a); }
+  clickDevice = a === 'device';
+});
+let clickDevice = false;
+canvas.addEventListener('pointerup', (ev) => {
+  const moved = downPos ? Math.hypot(ev.clientX - downPos[0], ev.clientY - downPos[1]) : 99;
+  if (clickDevice && moved < 6 && performance.now() - downAt < 450) goHome();
+  clickDevice = false;
 });
 const release = () => {
   if (held === 'button') { fw.input.button = false; device.setButton(false); }
@@ -161,6 +170,21 @@ kit.handleAction = (a) => {
   }
   return r;
 };
+// volta suave para a vista central do aparelho (câmera Principal)
+function goHome() {
+  const c = CAMS.hero; camBeforeHose = null; camBeforeCover = null;
+  if (kit.state.focus) dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape' }));  // fecha o painel do kit
+  flyTo(new THREE.Vector3(...c.pos), new THREE.Vector3(...c.tgt), 0.9);
+  if (camera.fov !== c.fov) { camera.fov = c.fov; camera.updateProjectionMatrix(); }
+}
+sim.home = goHome;
+addEventListener('keydown', (e) => { if (e.code === 'KeyH' && !(e.target.closest && e.target.closest('input,select,textarea'))) goHome(); });
+if (showUI) {
+  const hb = document.createElement('button');
+  hb.className = 'zm-btn'; hb.style.bottom = '162px'; hb.style.right = '16px'; hb.style.position = 'fixed'; hb.style.zIndex = 50;
+  hb.innerHTML = '⌖ Centralizar no aparelho'; hb.title = 'Voltar para a vista central do aparelho (tecla H)';
+  hb.onclick = goHome; document.body.append(hb);
+}
 const ui = showUI ? createUI({ fw, world, kit, sim, audio }) : { update() {} };
 sim.ui = ui;
 // botões da demonstração e da tela de perto só com a UI (capturas ui=0 ficam limpas)
