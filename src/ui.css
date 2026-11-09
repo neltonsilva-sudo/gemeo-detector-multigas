@@ -487,3 +487,48 @@
   :root:not([data-theme="light"]) .gx-glass { --gx-text: #f5f7fa; --gx-text-2: #e3e7ec; --gx-text-3: #c3cad3; text-shadow: 0 0 6px rgba(0, 0, 0, 0.6); } }
 :root[data-theme="dark"] { --lg-tint: rgba(14, 17, 23, 0.66); --lg-tint-2: rgba(44, 50, 62, 0.6); }
 :root[data-theme="dark"] .gx-glass { --gx-text: #f5f7fa; --gx-text-2: #e3e7ec; --gx-text-3: #c3cad3; text-shadow: 0 0 6px rgba(0, 0, 0, 0.6); }
+
+/* ===== Liquid glass "âmbar escuro" (referência do usuário: vidro escuro que pega a cor do ambiente, texto branco,
+   títulos amarelos, campos internos em vidro mais escuro, borda clara fina). Vale para os temas claro e escuro. ===== */
+:root, :root[data-theme="dark"], :root[data-theme="light"] {
+  --lg-tint: rgba(28, 22, 18, 0.30); --lg-tint-2: rgba(255, 236, 214, 0.10);
+  --lg-inner: rgba(10, 8, 6, 0.26); --lg-rim: rgba(255, 255, 255, 0.55); --lg-rim-2: rgba(255, 255, 255, 0.16);
+  --lg-blur: blur(20px) saturate(1.9) brightness(0.92);
+  --lg-shadow: 0 16px 44px -10px rgba(0, 0, 0, 0.45), 0 2px 10px -2px rgba(0, 0, 0, 0.25);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --lg-tint: rgba(28, 22, 18, 0.30); --lg-tint-2: rgba(255, 236, 214, 0.10); --lg-inner: rgba(10, 8, 6, 0.26);
+  --lg-rim: rgba(255, 255, 255, 0.55); --lg-rim-2: rgba(255, 255, 255, 0.16); --lg-blur: blur(20px) saturate(1.9) brightness(0.92); } }
+.gx-glass, :root[data-theme] .gx-glass, :root:not([data-theme="light"]) .gx-glass {
+  --gx-text: #ffffff; --gx-text-2: rgba(255, 255, 255, 0.92); --gx-text-3: rgba(255, 255, 255, 0.74);
+  color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+.gx-glass .gx-ph-t, .gx-glass .gx-sec-h > span:first-child, .gx-glass .gx-hud-k, .gx-glass .gx-h1-a { color: #ffd23f !important; }
+/* campos/cartões internos: vidro mais escuro com borda clara fina (como o campo de senha da referência) */
+.gx-glass .gx-hud, .gx-glass .gx-gas, .gx-glass .gx-trend, .gx-glass .gx-tabs, .gx-glass .gx-scen, .gx-glass .gx-rcard,
+.gx-glass .gx-clock, .gx-glass .gx-seg, .gx-glass .gx-act-i, .gx-glass input, .gx-glass select {
+  background: rgba(8, 6, 4, 0.28) !important; border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10) !important; color: #fff;
+}
+/* selecionados: vidro claro brilhante (como o botão "Entrar") */
+.gx-views button[aria-pressed="true"], .gx-tabs button[aria-selected="true"], .gx-seg [aria-checked="true"],
+.gx-scen.on {
+  background: linear-gradient(180deg, rgba(255, 236, 214, 0.42), rgba(160, 110, 70, 0.30)) !important;
+  border-color: rgba(255, 255, 255, 0.55) !important; color: #fff !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 4px 14px -6px rgba(0, 0, 0, 0.5) !important;
+}
+.gx-glass button { color: inherit; }
+.gx-glass .gx-views button, .gx-glass .gx-tabs button { color: rgba(255, 255, 255, 0.85) !important; }
+.zm-btn { color: #fff !important; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45); }
+/* correções do vidro âmbar: botões selecionados e comuns legíveis, trilho das barras visível */
+.gx-glass .gx-seg button[aria-checked="true"] {
+  background: linear-gradient(180deg, rgba(255, 236, 214, 0.5), rgba(160, 110, 70, 0.38)) !important; color: #fff !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 4px 12px -6px rgba(0, 0, 0, 0.5) !important;
+}
+.gx-glass .gx-btn:not(.accent) {
+  background: linear-gradient(180deg, rgba(255, 236, 214, 0.30), rgba(120, 80, 50, 0.28)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important; color: #fff !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+}
+.gx-glass .gx-bar { background: rgba(255, 255, 255, 0.22); }
+.gx-glass .gx-seg button { color: rgba(255, 255, 255, 0.85) !important; }
