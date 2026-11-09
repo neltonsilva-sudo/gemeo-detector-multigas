@@ -181,9 +181,34 @@ sim.home = goHome;
 addEventListener('keydown', (e) => { if (e.code === 'KeyH' && !(e.target.closest && e.target.closest('input,select,textarea'))) goHome(); });
 if (showUI) {
   const hb = document.createElement('button');
-  hb.className = 'zm-btn'; hb.style.bottom = '162px'; hb.style.right = '16px'; hb.style.position = 'fixed'; hb.style.zIndex = 50;
+  hb.className = 'zm-btn gx-row-btn';
   hb.innerHTML = '⌖ Centralizar no aparelho'; hb.title = 'Voltar para a vista central do aparelho (tecla H)';
-  hb.onclick = goHome; document.body.append(hb);
+  hb.onclick = goHome; setTimeout(() => (document.querySelector('.dm-wrap') || document.body).append(hb), 0);
+}
+// PARAR AVALIAÇÃO: encerra a medição e deixa o aparelho pronto para uma nova avaliação
+function stopEvaluation() {
+  sim.demo?.running && sim.demo.stop();
+  if (kit.state.focus) dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape' }));
+  if (kit.state.hoseAttached) kit.handleAction('hose');
+  if (kit.state.probeAttached) kit.handleAction('probe');
+  if (kit.state.valveOpen) kit.handleAction('valve');
+  inletCovered = false; fw.input.button = false; device.setButton(false);
+  world.setScenario('limpo'); lastScenery = null;                 // volta ao ar limpo (oficina)
+  const wasOn = fw.out && fw.out.state && fw.out.state !== 'off';
+  fw.ackAlarms?.();
+  if (wasOn) fw.jump('run');                                      // leitura normal, pronto
+  setTimeout(() => fw.clearPeaks?.(), 300);                       // zera pico/TWA/STEL já em ar limpo (registra no log)
+  goHome();
+}
+sim.stopEvaluation = stopEvaluation;
+if (showUI) {
+  const sb = document.createElement('button');
+  sb.className = 'zm-btn gx-row-btn gx-stop-eval';
+  sb.innerHTML = '■ Parar avaliação'; sb.title = 'Encerra a medição: desconecta o kit, volta ao ar limpo, zera picos/TWA/STEL e deixa o aparelho pronto';
+  sb.onclick = stopEvaluation; setTimeout(() => (document.querySelector('.dm-wrap') || document.body).prepend(sb), 0);
+  const st = document.createElement('style');
+  st.textContent = '.gx-row-btn{position:static!important;padding:10px 16px!important;border-radius:999px!important;white-space:nowrap} .dm-wrap{flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 32px)} .gx-stop-eval{background:linear-gradient(160deg,rgba(255,120,100,.35),rgba(150,30,20,.45))!important;border-color:rgba(255,190,180,.5)!important}';
+  document.head.append(st);
 }
 const ui = showUI ? createUI({ fw, world, kit, sim, audio }) : { update() {} };
 sim.ui = ui;
