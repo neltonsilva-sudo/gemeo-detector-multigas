@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { makeMaterials, buildCylinder, buildCap, buildRegulator, buildProbe, buildCalCup } from './kit_parts.js';
 import { Hose } from './kit_hose.js';
 import { psiToDeg, kitEnvironment } from './kit_tex.js';
+import { createKitPanel } from './kit_panel.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const ease = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -27,21 +28,26 @@ export function buildKit() {
   line.mesh.name = 'linha_sonda'; line.mesh.userData.action = 'probe'; group.add(line.mesh);
 
   const state = { valveOpen: false, hoseAttached: false, probeAttached: false, flowLpm: 0, pressureBar: 34.5, hoseLen: HOSE_LEN,
-    probeLineLen: LINE_LEN, regulatorMounted: true, gasLeftL: 34, layout: 'default' };
+    probeLineLen: LINE_LEN, regulatorMounted: true, gasLeftL: 34, layout: 'default', focus: null };
   const mix = { H2S: 25, CO: 100, LEL: 50, O2: 18 };
 
   // animações
   let knobAng = 0, needleAng = psiToDeg(0) * Math.PI / 180, needleVel = 0, ext = 0, extTarget = 0, ledI = 0;
   let hoseAnim = null, lineAnim = null; // { mode, t, dur, from, dirFrom }
   let deviceRef = null, deviceSaved = null, lastInlet = V(0.035, 0.013, 0.0105), haveInlet = false;
+  let lastInletWorld = V(0.035, 0.013, 0.0105), lastGroupY = 0, regMount = 1, regTarget = 1;
+  // a física roda no espaço LOCAL do kit (o orquestrador desce o kit inteiro ao piso quando há tripé)
+  const invG = new THREE.Matrix4();
+  const toLocal = (v) => v.applyMatrix4(invG);
+  const lenFor = (base) => (group.position.y < -0.01 ? Math.max(base, 2.0) : base);
   const tmp = V(0, 0, 0), tmp2 = V(0, 0, 0), qTmp = new THREE.Quaternion();
 
   // ---------------------------------------------------------------- layouts
   const L = {
     default: {
       // fora do quadro da câmera hero (o aparelho é o herói); a mangueira entra pela direita até a bomba
-      cyl: { p: [0.52, 0, -0.06], ry: -0.75 },
-      reg: { mounted: true, ry: -1.05 },
+      cyl: { p: [0.52, 0, -0.06], ry: 0.25 }, // rótulo voltado para a câmera de foco
+      reg: { mounted: true, ry: 0.3 }, // manômetro voltado para a câmera de foco (frente-direita)
       cap: { p: [0.62, 0.0154, -0.03], rx: Math.PI },
       cup: { p: [0.70, 0, 0.0] },
       probe: { base: [0.33, 0.13], dir: -0.12 /* aponta para +x */, roll: 0 },
@@ -65,17 +71,30 @@ export function buildKit() {
     const D = L.default;
     if (deviceRef && deviceSaved) { deviceRef.group.position.copy(deviceSaved.p); deviceRef.group.quaternion.copy(deviceSaved.q); }
     cyl.group.position.set(...D.cyl.p); cyl.group.rotation.set(0, D.cyl.ry, 0);
-    reg.group.position.set(D.cyl.p[0], cyl.height + 0.0003, D.cyl.p[2]); reg.group.rotation.set(0, D.reg.ry, 0);
+    regMount = regTarget = 1; placeReg(1);
     cap.position.set(...D.cap.p); cap.rotation.set(D.cap.rx, 0.4, 0);
     cup.group.position.set(...D.cup.p); cup.group.rotation.set(0, 0, 0);
     probePose = 'lying'; placeProbeLying(ext);
     state.regulatorMounted = true; state.layout = 'default';
     setVisibleAll(true);
-    group.updateMatrixWorld(true);
+    group.updateMatrixWorld(true); invG.copy(group.matrixWorld).invert(); lastGroupY = group.position.y;
+    hose.setLength(lenFor(HOSE_LEN)); line.setLength(lenFor(LINE_LEN)); state.hoseLen = hose.length; state.probeLineLen = line.length;
     rebuildColliders();
     // mangueira: sai do espigão, desce em arco e fica enrolada no chão ao lado do cilindro
     if (!state.hoseAttached) initHoseCoil(); else hose.settle(2.5);
     if (!state.probeAttached) initLineLying(); else line.settle(2);
+  }
+
+  // regulador: m=1 rosqueado no cilindro, m=0 apoiado no chão ao lado (desrosqueia girando e sobe antes de descer)
+  function placeReg(m) {
+    const D = L.default, cp = D.cyl.p;
+    const top = V(cp[0], cyl.height + 0.0003, cp[2]);
+    const floor = V(cp[0] - 0.02, reg.gaugeR - reg.gaugeCenterY + 0.0004, cp[2] + 0.1);
+    const t = ease(m);
+    const lift = Math.sin(Math.PI * Math.min(1, m * 1.0)) * 0.06 + (m > 0.75 ? 0 : 0);
+    reg.group.position.lerpVectors(floor, top, t); reg.group.position.y += lift * (1 - Math.abs(2 * t - 1)) * 0.5;
+    const spin = (1 - Math.min(1, Math.max(0, (m - 0.7) / 0.3))) * -3 * Math.PI; // 1,5 volta de rosca no fim do curso
+    reg.group.rotation.set(0, D.reg.ry + spin, 0);
   }
 
   function refLayout(device) {
@@ -102,24 +121,24 @@ export function buildKit() {
 
   // ---------------------------------------------------------------- colisores (mundo)
   function rebuildColliders() {
-    group.updateMatrixWorld(true);
+    group.updateMatrixWorld(true); invG.copy(group.matrixWorld).invert();
     const C = [];
     const cp = cyl.group.position;
     C.push({ type: 'capsule', a: V(cp.x, -0.05, cp.z), b: V(cp.x, 0.236, cp.z), r: 0.038 });
     if (state.regulatorMounted || true) {
-      const w = (x, y, z) => V(x, y, z).applyMatrix4(reg.group.matrixWorld);
+      const w = (x, y, z) => V(x, y, z).applyMatrix4(reg.group.matrix);
       C.push({ type: 'capsule', a: w(0, 0.0, 0), b: w(0, 0.093, 0), r: 0.0205, skipStart: 3 });
       C.push({ type: 'capsule', a: w(0, 0.012, 0.03), b: w(0, 0.012, 0.039), r: 0.026, skipStart: 3 });
       C.push({ type: 'capsule', a: w(0.025, 0.028, 0), b: w(0.047, 0.028, 0), r: 0.0145, skipStart: 3 });
     }
-    const pw = (y) => V(0, y, 0).applyMatrix4(probe.group.matrixWorld);
+    const pw = (y) => V(0, y, 0).applyMatrix4(probe.group.matrix);
     C.push({ type: 'capsule', a: pw(0.03), b: pw(0.118), r: 0.017, skipStart: 4, probe: true });
     C.push({ type: 'capsule', a: pw(0.16), b: pw(0.2), r: 0.011, probe: true });
     C.push({ type: 'capsule', a: pw(0.2), b: pw(probe.lenAt(ext)), r: 0.004, probe: true });
     const up = cup.group.position; C.push({ type: 'capsule', a: V(up.x, 0, up.z), b: V(up.x, 0.012, up.z), r: 0.018 });
     const kp = cap.position; C.push({ type: 'capsule', a: V(kp.x, 0, kp.z), b: V(kp.x, 0.006, kp.z), r: 0.019 });
     // aparelho (caixa 70×131×52 mm)
-    const mat = deviceRef ? deviceRef.group.matrixWorld.clone() : new THREE.Matrix4();
+    const mat = invG.clone().multiply(deviceRef ? deviceRef.group.matrixWorld : new THREE.Matrix4());
     C.push({ type: 'box', mat, inv: mat.clone().invert(), center: V(0, 0.0655, 0), half: V(0.035, 0.0655, 0.026), skipEnd: 4 });
     hose.colliders = C;
     line.colliders = C.map((c) => (c.probe && c.skipStart ? { ...c, skipStart: 6 } : c));
@@ -127,13 +146,13 @@ export function buildKit() {
 
   // ---------------------------------------------------------------- formas iniciais
   function hoseStart() {
-    reg.barb.getWorldPosition(hose.start.pos);
-    hose.start.dir.set(0, 1, 0).applyQuaternion(reg.group.getWorldQuaternion(qTmp)).normalize();
+    hose.start.pos.copy(reg.barb.position).applyMatrix4(reg.group.matrix);
+    hose.start.dir.set(0, 1, 0).applyQuaternion(reg.group.quaternion).normalize();
     hose.start.depth = 0.0075;
   }
   function lineStart() {
-    probe.outlet.getWorldPosition(line.start.pos);
-    line.start.dir.set(0, -1, 0).applyQuaternion(probe.group.getWorldQuaternion(qTmp)).normalize();
+    line.start.pos.copy(probe.outlet.position).applyMatrix4(probe.group.matrix);
+    line.start.dir.set(0, -1, 0).applyQuaternion(probe.group.quaternion).normalize();
     line.start.depth = 0.006;
   }
   function initHoseCoil() {
@@ -143,8 +162,8 @@ export function buildKit() {
     const out = V(0.9, 0, -0.45).normalize(); // atrás-direita, lado oposto ao manômetro e ao aparelho
     const pts = [s.clone(), s.clone().add(V(0, 0.05, 0)), s.clone().add(V(out.x * 0.05, 0.06, out.z * 0.05)), s.clone().add(V(out.x * 0.09, 0.0, out.z * 0.09)),
       V(cp.x + out.x * 0.08, 0.15, cp.z + out.z * 0.08), V(cp.x + out.x * 0.09, 0.02, cp.z + out.z * 0.09)];
-    const c = V(cp.x + out.x * 0.24, 0.004, cp.z + out.z * 0.24), R = 0.05;
-    for (let k = 0; k <= 26; k++) { const a = Math.PI * 1.1 + k / 26 * Math.PI * 2.2; pts.push(V(c.x + Math.cos(a) * R * (1 - k * 0.005), 0.004 + k * 0.0003, c.z + Math.sin(a) * R * (1 - k * 0.005))); }
+    const c = V(cp.x + out.x * 0.24, 0.004, cp.z + out.z * 0.24);
+    spiral(pts, c, 0.05, hose.length, Math.PI * 1.1);
     hose.initAlong(pts); hose.settle(3.5);
   }
   function initLineLying() {
@@ -154,18 +173,33 @@ export function buildKit() {
     // a linha sai da base da empunhadura, faz uma curva para a frente e volta para a direita (longe do aparelho)
     const pts = [s.clone(), s.clone().addScaledVector(d, 0.03).setY(0.012)];
     for (let k = 1; k <= 24; k++) { const a = k / 24 * Math.PI * 1.15; pts.push(s.clone().addScaledVector(d, 0.03 + Math.sin(a) * 0.06).addScaledVector(side, (1 - Math.cos(a)) * 0.06).setY(0.004)); }
-    pts.push(pts[pts.length - 1].clone().addScaledVector(d, -0.25));
+    if (line.length > 0.8) spiral(pts, pts[pts.length - 1].clone().addScaledVector(side, 0.07), 0.07, line.length, 0);
+    else pts.push(pts[pts.length - 1].clone().addScaledVector(d, -0.25));
     line.initAlong(pts); line.settle(2.5);
+  }
+  // espiral plana no chão (rolo de mangueira) até completar o comprimento
+  function spiral(pts, c, r0, total, a0) {
+    let acc = 0; for (let i = 1; i < pts.length; i++) acc += pts[i].distanceTo(pts[i - 1]);
+    let a = a0, r = r0;
+    while (acc < total * 1.05 && a < a0 + 60) {
+      const p = V(c.x + Math.cos(a) * r, 0.0045, c.z + Math.sin(a) * r);
+      acc += p.distanceTo(pts[pts.length - 1]); pts.push(p);
+      a += 0.22; r += 0.0105 * 0.22 / (2 * Math.PI);
+    }
   }
 
   // ---------------------------------------------------------------- entrada do aparelho
+  // bico no topo do aparelho → aponta para cima; bico lateral → +x do aparelho
   function inletDir(out) {
+    const baseY = deviceRef ? deviceRef.group.getWorldPosition(tmp).y : 0;
+    if (lastInletWorld.y - baseY > 0.12) return out.set(0, 1, 0);
     if (deviceRef) return out.set(1, 0, 0).applyQuaternion(deviceRef.group.getWorldQuaternion(qTmp));
     return out.set(1, 0, 0);
   }
   function startAttach(h, which) {
     const n = h.n, from = h.p[n - 1].clone(), dirFrom = tmp.subVectors(h.p[n - 2], h.p[n - 1]).normalize().clone();
-    return { mode: 'attach', t: 0, dur: 1.25, from, dirFrom, which };
+    const dist = from.distanceTo(lastInlet);
+    return { mode: 'attach', t: 0, dur: Math.min(1.7, 1.0 + dist * 0.3), from, dirFrom, which };
   }
   function startDetach(which) { return { mode: 'detach', t: 0, dur: 0.35, which }; }
   const inD = V(1, 0, 0);
@@ -179,13 +213,14 @@ export function buildKit() {
     if (anim.mode === 'attach') {
       if (k < 0.78) {
         const t = ease(k / 0.78), a = anim.from, b = pre;
-        const c1 = V(a.x, Math.max(a.y, b.y) + 0.1, a.z), c2 = V(b.x + inD.x * 0.06, b.y + 0.05, b.z + inD.z * 0.06);
+        const c1 = V(a.x, Math.max(a.y, b.y) * 0.7 + 0.12, a.z), c2 = V(b.x + inD.x * 0.08, b.y + inD.y * 0.08 + 0.03, b.z + inD.z * 0.08);
         const u = 1 - t;
         h.end.pos.set(0, 0, 0).addScaledVector(a, u * u * u).addScaledVector(c1, 3 * u * u * t).addScaledVector(c2, 3 * u * t * t).addScaledVector(b, t * t * t);
         h.end.dir.copy(anim.dirFrom).lerp(inD, t).normalize(); h.end.depth = 0;
       } else {
-        const t = ease((k - 0.78) / 0.22);
-        h.end.pos.copy(pre).lerp(target, t); h.end.dir.copy(inD); h.end.depth = 0.0045 * t;
+        // encaixe: desce sobre o bico com um pequeno empurrão (passa do ponto e assenta)
+        const u = (k - 0.78) / 0.22, t = ease(u);
+        h.end.pos.copy(pre).lerp(target, t); h.end.dir.copy(inD); h.end.depth = 0.0045 * t + 0.003 * Math.sin(Math.PI * Math.min(1, u * 1.15));
       }
       if (k >= 1) return 'done';
     } else {
@@ -201,6 +236,11 @@ export function buildKit() {
     if (state.layout !== 'default') applyDefault();
     if (name === 'valve') {
       state.valveOpen = !state.valveOpen;
+    } else if (name === 'gauge' || name === 'cylinder') {
+      state.focus = name; panel.open(name);
+    } else if (name === 'regulator') {
+      regTarget = regTarget > 0.5 ? 0 : 1;
+      if (regTarget === 0) state.valveOpen = false;
     } else if (name === 'hose') {
       if (!state.hoseAttached && !(hoseAnim && hoseAnim.mode === 'attach')) {
         if (state.probeAttached) { state.probeAttached = false; lineAnim = startDetach('line'); extTarget = 0; }
@@ -225,8 +265,23 @@ export function buildKit() {
   }
   function update(dt, ctx = {}) {
     if (!envDone) ensureEnv();
-    if (ctx.inletWorld) { lastInlet.copy(ctx.inletWorld); haveInlet = true; }
+    group.updateMatrixWorld(true); invG.copy(group.matrixWorld).invert();
+    if (ctx.inletWorld) { lastInletWorld.copy(ctx.inletWorld); haveInlet = true; }
+    lastInlet.copy(lastInletWorld); toLocal(lastInlet);
     const inlet = lastInlet;
+    // o kit desceu/subiu (tripé): refaz comprimentos, rolos e colisores
+    if (Math.abs(group.position.y - lastGroupY) > 1e-4 && state.layout === 'default') {
+      lastGroupY = group.position.y;
+      hose.setLength(lenFor(HOSE_LEN)); line.setLength(lenFor(LINE_LEN)); state.hoseLen = hose.length; state.probeLineLen = line.length;
+      rebuildColliders();
+      if (!state.hoseAttached && !hoseAnim) initHoseCoil(); else hose.settle(2.5);
+      if (!state.probeAttached && !lineAnim) initLineLying(); else line.settle(2);
+    }
+    // rosquear/retirar regulador
+    if (regMount !== regTarget && state.layout === 'default') {
+      regMount += Math.sign(regTarget - regMount) * Math.min(Math.abs(regTarget - regMount), dt / 1.1);
+      placeReg(regMount); state.regulatorMounted = regMount > 0.98; rebuildColliders();
+    }
     // manopla: 1¼ volta para abrir
     const kTarget = state.valveOpen ? -2.5 * Math.PI : 0;
     knobAng += (kTarget - knobAng) * (1 - Math.exp(-dt * 4.5));
@@ -269,6 +324,7 @@ export function buildKit() {
       if (dt === 0 && (state.hoseAttached || state.probeAttached) && !settledFor) { hose.settle(2); line.settle(2); settledFor = true; }
       hose.updateMesh(); line.updateMesh();
     }
+    panel.update(state, needleAng);
   }
   let settledFor = false;
 
@@ -280,10 +336,15 @@ export function buildKit() {
     o.onAfterRender = (r, sc, cam, geo) => { if (o.userData._dr !== undefined) { geo.setDrawRange(0, o.userData._dr); o.userData._dr = undefined; } };
   });
 
-  applyDefault();
-
-  return {
+  const kitApi = {
     group, state, mix, update, handleAction, refLayout, defaultLayout: applyDefault,
-    parts: { cyl, cap, reg, probe, cup, hose, line, M },
+    // reg/cyl são Object3D (o orquestrador mira a câmera neles); detalhes internos em regParts/cylParts
+    parts: { cyl: cyl.group, reg: reg.group, cylParts: cyl, regParts: reg, cap, probe, cup, hose, line, M },
   };
+  // painel: botões chamam a API pública (o orquestrador pode envolver handleAction para mover a câmera)
+  const panel = createKitPanel({ action: (a) => kitApi.handleAction(a), onClose: () => { state.focus = null; } });
+  kitApi.panel = panel;
+
+  applyDefault();
+  return kitApi;
 }

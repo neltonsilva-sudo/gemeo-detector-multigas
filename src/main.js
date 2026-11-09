@@ -127,6 +127,34 @@ const sim = {
   capture() { stage.render(0); return renderer.domElement.toDataURL('image/png'); },
 };
 window.__sim = sim;
+// ao conectar a mangueira (botão "Mangueira", clique no kit ou demonstração), a câmera vai até o bico de entrada
+// e mostra o encaixe; ao soltar, volta para a vista anterior
+const camAnim = { t: 1, dur: 1.2, p0: new THREE.Vector3(), p1: new THREE.Vector3(), t0: new THREE.Vector3(), t1: new THREE.Vector3() };
+function flyTo(pos, tgt, dur = 1.2) {
+  camAnim.p0.copy(camera.position); camAnim.t0.copy(controls.target);
+  camAnim.p1.copy(pos); camAnim.t1.copy(tgt); camAnim.t = 0; camAnim.dur = dur;
+}
+let camBeforeHose = null;
+const _kitAction = kit.handleAction.bind(kit);
+kit.handleAction = (a) => {
+  const was = kit.state.hoseAttached;
+  const r = _kitAction(a);
+  const wp = (o) => { const p = new THREE.Vector3(); if (o) o.getWorldPosition(p); return p; };
+  if (a === 'hose') {
+    const p = wp(device.inletAnchor);
+    if (!was) {   // pedido de conectar (a animação do kit termina depois)
+      camBeforeHose = { pos: camera.position.clone(), tgt: controls.target.clone() };
+      flyTo(p.clone().add(new THREE.Vector3(0.16, 0.06, 0.2)), p.clone().add(new THREE.Vector3(0, -0.03, 0)));
+    } else if (camBeforeHose) { flyTo(camBeforeHose.pos, camBeforeHose.tgt); camBeforeHose = null; }
+  }
+  // manômetro/regulador e cilindro: câmera vai até a peça (o kit mostra o painel de detalhes)
+  const part = { gauge: kit.parts?.reg, valve: kit.parts?.reg, cylinder: kit.parts?.cyl }[a];
+  if (part && (a !== 'valve' || kit.state.focus === 'gauge')) {
+    const p = wp(part); const d = a === 'cylinder' ? 0.75 : 0.32;
+    flyTo(p.clone().add(new THREE.Vector3(d * 0.35, d * 0.25, d)), p.clone().add(new THREE.Vector3(0, a === 'cylinder' ? 0.12 : 0.02, 0)));
+  }
+  return r;
+};
 const ui = showUI ? createUI({ fw, world, kit, sim, audio }) : { update() {} };
 sim.ui = ui;
 // botões da demonstração e da tela de perto só com a UI (capturas ui=0 ficam limpas)
@@ -166,6 +194,11 @@ function frame(now) {
   device.update(sdt, { vibrate: out.vibrate, time: simT });
   audio.update(out, sdt);
   ui.update(out, sdt);
+  if (camAnim.t < 1) {
+    camAnim.t = Math.min(1, camAnim.t + dt / camAnim.dur);
+    const e = camAnim.t * camAnim.t * (3 - 2 * camAnim.t);
+    camera.position.lerpVectors(camAnim.p0, camAnim.p1, e); controls.target.lerpVectors(camAnim.t0, camAnim.t1, e);
+  }
   controls.update();
   stage.render(dt);
   if (first) { first = false; window.__ready = true; const b = document.getElementById('boot'); if (b) { b.style.opacity = 0; setTimeout(() => b.remove(), 700); } }

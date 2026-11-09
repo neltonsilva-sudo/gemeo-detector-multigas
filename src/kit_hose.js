@@ -46,6 +46,8 @@ export class Hose {
     this.N = new THREE.Vector3(); this.B = new THREE.Vector3();
   }
 
+  setLength(L) { this.length = L; this.seg = L / (this.n - 1); }
+
   // forma inicial: lista de pontos de controle (polilinha) reamostrada no comprimento da mangueira
   initAlong(pts) {
     const L = [0]; for (let i = 1; i < pts.length; i++) L.push(L[i - 1] + pts[i].distanceTo(pts[i - 1]));

@@ -109,6 +109,7 @@ export function buildCylinder(M) {
   const th = [[8.6, 283.6], [8.6, 284.4]]; for (let y = 284.4; y < 291; y += 1.41) th.push([8.0, y + 0.35], [8.4, y + 0.7], [8.0, y + 1.05]);
   th.push([7.6, 291.6], [3.2, 291.6], [3.2, 288.5]);
   group.add(mesh(lathe(th, 64, 0.5), M.nickelBright, 'cil_valvula'));
+  group.userData.action = 'cylinder';
   return { group, body, height: 0.2837, valveTop: 0.2916 };
 }
 
@@ -127,7 +128,7 @@ export function buildCap(M) {
   }
   g.computeVertexNormals();
   const m = mesh(g, M.capPlastic, 'tampa'); m.userData.noShadow = false;
-  const grp = new THREE.Group(); grp.add(m); grp.name = 'tampa';
+  const grp = new THREE.Group(); grp.add(m); grp.name = 'tampa'; grp.userData.action = 'cylinder';
   return grp;
 }
 
@@ -183,6 +184,7 @@ export function buildRegulator(M) {
   knob.traverse((o) => { o.userData.action = 'valve'; }); knob.userData.action = 'valve';
   // âncora do bico espigão (saída) — ponta do espigão, apontando +y
   const barb = new THREE.Object3D(); barb.position.set(0, 0.1224, 0); group.add(barb);
+  group.userData.action = 'gauge'; // corpo/manômetro → painel de detalhe (a manopla mantém 'valve')
   return { group, knob, needle, gauge, barb, gaugeCenterY: 0.012, gaugeR: 0.0258 * 1.1, height: 0.1224 };
 }
 
