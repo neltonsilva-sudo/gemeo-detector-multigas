@@ -30,6 +30,11 @@ const CSS = `
 .kp-tab td{padding:5px 2px;border-bottom:1px solid rgba(255,255,255,.12)} .kp-tab td:last-child{text-align:right;font-weight:700}
 .kp-ghs{display:flex;gap:10px;align-items:center;margin:4px 0 12px;padding:9px 10px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);font-size:12px}
 .kp-note{opacity:.75;font-size:11.5px;margin-top:8px}
+.kp-big{display:flex;align-items:baseline;justify-content:center;gap:10px;margin:-2px 0 6px;font-variant-numeric:tabular-nums}
+.kp-big b{font-size:30px;font-weight:800;letter-spacing:-.01em} .kp-big span{opacity:.8}
+.kp-tr{display:block;text-align:center;font-weight:700;font-size:13px;margin-bottom:8px;color:#ffd23f}
+.kp-tr.ok{color:rgba(255,255,255,.75)}
+.kp-spark{display:block;width:100%;height:74px;margin:2px 0 10px;border-radius:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14)}
 `;
 const GHS = `<svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true"><rect x="7" y="7" width="26" height="26" transform="rotate(45 20 20)" fill="#fff" stroke="#d0151c" stroke-width="3.4"/>
 <g transform="rotate(-22 20 21)"><rect x="9.5" y="17.6" width="19" height="6.8" rx="3.4" fill="#111"/><rect x="28" y="19" width="2.6" height="4" fill="#111"/><rect x="30.2" y="17.8" width="1.4" height="6.4" fill="#111"/></g></svg>`;
@@ -43,15 +48,18 @@ export function createKitPanel(api) {
     <div class="kp-h"><span class="kp-t" data-k="title"></span><button class="kp-x" aria-label="Fechar">×</button></div>
     <div data-sec="gauge">
       <canvas class="kp-dial" width="472" height="472"></canvas>
+      <div class="kp-big"><b data-k="pb"></b><span data-k="pp"></span></div>
+      <span class="kp-tr" data-k="tr"></span>
+      <canvas class="kp-spark" width="672" height="148" aria-label="Pressão no manômetro nos últimos minutos"></canvas>
       <div class="kp-warn" data-k="warn">Cilindro quase vazio — troque</div>
       <div class="kp-g">
-        <div class="kp-c"><small>Pressão</small><b data-k="p"></b></div>
+        <div class="kp-c"><small>Conteúdo</small><b data-k="p"></b></div>
         <div class="kp-c"><small>Fluxo</small><b data-k="f"></b></div>
         <div class="kp-c"><small>Gás restante</small><b data-k="g"></b></div>
         <div class="kp-c"><small>Válvula</small><b data-k="v"></b></div>
       </div>
       <button class="kp-btn" data-b="valve"></button>
-      <div class="kp-note">Regulador de fluxo fixo 0,5 L/min. O manômetro indica o conteúdo do cilindro (0–1500 psi / 0–103 bar).</div>
+      <div class="kp-note">Regulador de fluxo fixo 0,5 L/min. O manômetro fica depois da válvula on/off: aberta, mostra a pressão do cilindro (0–1500 psi / 0–103 bar); fechada, o regulador despressuriza e o ponteiro volta a 0.</div>
     </div>
     <div data-sec="cylinder">
       <table class="kp-tab"><tbody>
@@ -75,7 +83,7 @@ export function createKitPanel(api) {
   </div>`;
   document.body.appendChild(el);
   const q = (s) => el.querySelector(s), K = (k) => el.querySelector(`[data-k="${k}"]`);
-  const canvas = q('canvas'), g = canvas.getContext('2d');
+  const canvas = q('.kp-dial'), g = canvas.getContext('2d'), spark = q('.kp-spark'), gs = spark.getContext('2d');
   let kind = null;
   const close = () => { kind = null; el.classList.remove('on'); api.onClose && api.onClose(); };
   q('.kp-x').addEventListener('click', close);
@@ -111,6 +119,21 @@ export function createKitPanel(api) {
     g.fillStyle = gl; g.beginPath(); g.ellipse(C - R * 0.18, C - R * 0.3, R * 0.75, R * 0.45, -0.6, 0, 7); g.fill();
   }
 
+  function drawSpark(hist) {
+    const W = spark.width, H = spark.height, padL = 54, padB = 26, padT = 14;
+    gs.clearRect(0, 0, W, H);
+    const max = 40;
+    gs.font = '600 19px Inter,system-ui,sans-serif'; gs.fillStyle = 'rgba(255,255,255,.6)'; gs.textBaseline = 'middle'; gs.textAlign = 'right';
+    for (const v of [0, 20, 40]) { const y = padT + (H - padT - padB) * (1 - v / max); gs.fillText(String(v), padL - 10, y); gs.strokeStyle = 'rgba(255,255,255,.12)'; gs.lineWidth = 1.5; gs.beginPath(); gs.moveTo(padL, y); gs.lineTo(W - 10, y); gs.stroke(); }
+    gs.textAlign = 'left'; gs.fillText('−6 min', padL, H - 11); gs.textAlign = 'right'; gs.fillText('agora · bar', W - 10, H - 11);
+    if (!hist || hist.length < 2) return;
+    const n = 180, x = (i) => padL + (W - 10 - padL) * (i + (n - hist.length)) / (n - 1), y = (v) => padT + (H - padT - padB) * (1 - Math.min(max, v) / max);
+    const grd = gs.createLinearGradient(0, padT, 0, H - padB); grd.addColorStop(0, 'rgba(255,210,63,.35)'); grd.addColorStop(1, 'rgba(255,210,63,0)');
+    gs.beginPath(); gs.moveTo(x(0), y(0)); hist.forEach((v, i) => gs.lineTo(x(i), y(v))); gs.lineTo(x(hist.length - 1), y(0)); gs.closePath(); gs.fillStyle = grd; gs.fill();
+    gs.beginPath(); hist.forEach((v, i) => (i ? gs.lineTo(x(i), y(v)) : gs.moveTo(x(i), y(v)))); gs.strokeStyle = '#ffd23f'; gs.lineWidth = 3.5; gs.lineJoin = 'round'; gs.stroke();
+    const lv = hist[hist.length - 1]; gs.fillStyle = '#ffd23f'; gs.beginPath(); gs.arc(x(hist.length - 1), y(lv), 6, 0, 7); gs.fill();
+  }
+
   return {
     el,
     get kind() { return kind; },
@@ -120,14 +143,21 @@ export function createKitPanel(api) {
       el.querySelectorAll('[data-sec]').forEach((s) => { s.style.display = s.dataset.sec === k ? '' : 'none'; });
     },
     close,
-    update(s, needleRad) {
+    update(s, needleRad, hist) {
       if (!kind) return;
       const psi = s.pressureBar * 14.5038, low = s.pressureBar < 3;
       const minLeft = s.flowLpm > 0.01 ? s.gasLeftL / s.flowLpm : s.gasLeftL / 0.5;
       const gasTxt = `${f1(s.gasLeftL)} L · ≈ ${Math.floor(minLeft)} min`;
       if (kind === 'gauge') {
         drawDial(needleRad);
-        K('p').textContent = s.regulatorMounted ? `${f1(s.pressureBar)} bar · ${Math.round(psi)} psi` : '— (regulador solto)';
+        const shown = s.gaugeShownBar ?? s.pressureBar;
+        K('pb').textContent = `${f1(shown)} bar`; K('pp').textContent = `${Math.round(shown * 14.5038)} psi`;
+        const tr = K('tr');
+        if (s.flowLpm > 0.01) { tr.textContent = `↓ −${f1(s.dropBarMin, 2)} bar/min (gás fluindo${s.simScale > 1 ? ` · ${s.simScale}×` : ''})`; tr.classList.remove('ok'); }
+        else if (!s.valveOpen && (s.gaugeBar || 0) > 0.05) { tr.textContent = '↓ despressurizando (válvula fechada)'; tr.classList.remove('ok'); }
+        else { tr.textContent = s.valveOpen ? 'estável' : 'válvula fechada · manômetro sem pressão'; tr.classList.add('ok'); }
+        drawSpark(hist);
+        K('p').textContent = s.regulatorMounted ? `${f1(s.pressureBar)} bar no cilindro` : '— (regulador solto)';
         K('f').textContent = `${f1(s.flowLpm, 2)} L/min`;
         K('g').textContent = gasTxt;
         K('v').textContent = s.valveOpen ? 'aberta' : 'fechada';

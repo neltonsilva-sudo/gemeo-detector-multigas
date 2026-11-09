@@ -297,3 +297,51 @@ export function buildCalCup(M) {
   const ring = mesh(new THREE.TorusGeometry(0.0165, 0.0011, 12, 96), M.knobPlain); ring.rotation.x = Math.PI / 2; ring.position.y = 0.0015; group.add(ring);
   return { group };
 }
+
+// ---------------------------------------------------------------- bancada/carrinho de serviço (modo tripé)
+// tampo de inox escovado 0,9 × 0,5 m com borda dobrada, prateleira inferior, pés de tubo quadrado e rodízios giratórios.
+// Superfície do tampo a 0,80 m. Centro em (cx, cz) no espaço do kit (à direita e atrás do tripé, fora do raio 0,42 m).
+export function buildBench(M) {
+  const group = new THREE.Group(); group.name = 'bancada';
+  const cx = 1.25, cz = -0.05, W = 0.9, D = 0.5, top = 0.80, T = 0.032; // fora do frustum da câmera hero
+  const steelTop = new THREE.MeshPhysicalMaterial({ color: 0xcfd2d5, metalness: 1, roughness: 0.3, normalMap: M.nickel.normalMap, normalScale: new THREE.Vector2(0.12, 0.12), anisotropy: 0.5 });
+  const tube = new THREE.MeshPhysicalMaterial({ color: 0xc4c7ca, metalness: 1, roughness: 0.26 });
+  const rubber = new THREE.MeshPhysicalMaterial({ color: 0x2b2c2e, roughness: 0.72 });
+  const plate = new THREE.MeshPhysicalMaterial({ color: 0x9a9da1, metalness: 1, roughness: 0.38 });
+  const add = (g, m, x, y, z) => { const o = new THREE.Mesh(g, m); o.position.set(x, y, z); group.add(o); return o; };
+  const slab = (w, d, h, r, m, y) => {
+    const s = new THREE.Shape(), hw = w / 2, hd = d / 2;
+    s.moveTo(-hw + r, -hd); s.lineTo(hw - r, -hd); s.quadraticCurveTo(hw, -hd, hw, -hd + r); s.lineTo(hw, hd - r); s.quadraticCurveTo(hw, hd, hw - r, hd);
+    s.lineTo(-hw + r, hd); s.quadraticCurveTo(-hw, hd, -hw, hd - r); s.lineTo(-hw, -hd + r); s.quadraticCurveTo(-hw, -hd, -hw + r, -hd);
+    const g = new THREE.ExtrudeGeometry(s, { depth: h - 0.006, bevelEnabled: true, bevelThickness: 0.003, bevelSize: 0.003, bevelSegments: 3, curveSegments: 8 });
+    g.rotateX(-Math.PI / 2); g.translate(0, 0.003, 0);
+    const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 3, uv.getY(i) * 3);
+    return add(g, m, cx, y, cz);
+  };
+  slab(W, D, T, 0.018, steelTop, top - T);
+  // borda dobrada (atrás e laterais) — segura peças que rolam
+  add(new THREE.BoxGeometry(W, 0.018, 0.004), steelTop, cx, top + 0.009, cz - D / 2 + 0.002);
+  add(new THREE.BoxGeometry(0.004, 0.018, D), steelTop, cx - W / 2 + 0.002, top + 0.009, cz);
+  add(new THREE.BoxGeometry(0.004, 0.018, D), steelTop, cx + W / 2 - 0.002, top + 0.009, cz);
+  slab(W - 0.06, D - 0.06, 0.02, 0.012, steelTop, 0.24);
+  const legY0 = 0.112, legY1 = top - T, lh = legY1 - legY0;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const x = cx + sx * (W / 2 - 0.045), z = cz + sz * (D / 2 - 0.045);
+    add(new THREE.BoxGeometry(0.032, lh, 0.032), tube, x, legY0 + lh / 2, z);
+    // rodízio giratório: placa, garfo, roda de borracha com cubo
+    add(new THREE.BoxGeometry(0.06, 0.006, 0.06), plate, x, legY0 - 0.003, z);
+    add(new THREE.CylinderGeometry(0.012, 0.012, 0.012, 20), plate, x, legY0 - 0.012, z);
+    for (const s of [-1, 1]) add(new THREE.BoxGeometry(0.004, 0.05, 0.05), plate, x + s * 0.02, 0.072, z + 0.012);
+    const wheel = add(new THREE.CylinderGeometry(0.048, 0.048, 0.03, 40), rubber, x, 0.048, z + 0.018); wheel.rotation.z = Math.PI / 2;
+    const hub = add(new THREE.CylinderGeometry(0.02, 0.02, 0.032, 24), tube, x, 0.048, z + 0.018); hub.rotation.z = Math.PI / 2;
+  }
+  // alça de empurrar na extremidade direita
+  const hx = cx + W / 2 + 0.05;
+  for (const sz of [-1, 1]) { const p = add(new THREE.CylinderGeometry(0.011, 0.011, 0.06, 20), tube, hx - 0.03, top - 0.03, cz + sz * 0.18); p.rotation.z = Math.PI / 2; }
+  add(new THREE.CylinderGeometry(0.013, 0.013, 0.38, 24), tube, hx, top - 0.03, cz).rotation.x = Math.PI / 2;
+  group.traverse((o) => { if (o.isMesh) o.userData.bench = true; });
+  const floorAt = (x, z) => (Math.abs(x - cx) <= W / 2 && Math.abs(z - cz) <= D / 2 ? top : 0);
+  const I = new THREE.Matrix4();
+  const colliders = [{ type: 'box', mat: I, inv: I, center: new THREE.Vector3(cx, top - T / 2, cz), half: new THREE.Vector3(W / 2, T / 2, D / 2) }];
+  return { group, top, cx, cz, W, D, floorAt, colliders };
+}

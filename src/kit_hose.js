@@ -131,7 +131,8 @@ export class Hose {
           }
         }
       }
-      if (pi.y < F) { pi.y = F; const qi = q[i]; qi.x += (pi.x - qi.x) * this.friction; qi.z += (pi.z - qi.z) * this.friction; if (qi.y < F) qi.y = F; }
+      const Fi = this.floorFn ? this.floorFn(pi.x, pi.z) + r : F;
+      if (pi.y < Fi) { pi.y = Fi; const qi = q[i]; qi.x += (pi.x - qi.x) * this.friction; qi.z += (pi.z - qi.z) * this.friction; if (qi.y < Fi) qi.y = Fi; }
     }
     // autocolisão (evita a mangueira atravessar a si mesma ao enrolar no chão)
     const D = 2 * r * 0.98, D2 = D * D;

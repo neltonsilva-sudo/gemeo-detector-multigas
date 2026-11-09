@@ -11,6 +11,8 @@ import { createGasWorld } from './gasworld.js';
 import { createUI } from './ui.js';
 import { createDemo } from './demo.js';
 import { createZoom } from './zoom.js';
+import { createVolume } from './volume.js';
+import { buildHand } from './hand.js';
 import { buildTripod, TRIPOD_H } from './tripod.js';
 
 const Q = new URLSearchParams(location.search);
@@ -30,6 +32,7 @@ scene.add(device.group);
 const kit = buildKit();
 scene.add(kit.group);
 // tripé: aparece nos ambientes por cenário (o estúdio/manual mantém o aparelho apoiado na mesa); o kit desce ao piso
+const hand = buildHand(); scene.add(hand.group);
 const tripod = buildTripod(); tripod.visible = false; scene.add(tripod);
 // ambientes já ajustados para o tripé (piso em -TRIPOD_H); os demais seguem com o aparelho apoiado até serem refeitos
 const TRIPOD_READY = new Set(['limpo', 'confinado', 'vazamento-h2s', 'co-motor', 'deficiencia-o2', 'explosiva', 'enriquecimento-o2']);
@@ -161,6 +164,7 @@ sim.ui = ui;
 // botões da demonstração e da tela de perto só com a UI (capturas ui=0 ficam limpas)
 sim.zoom = showUI ? createZoom(sim) : null;
 sim.demo = showUI ? createDemo(sim) : null;
+sim.volume = showUI ? createVolume(audio) : null;
 if (Q.get('demo') === '1') document.addEventListener('pointerdown', () => { audio.unlock(); if (sim.demo && !sim.demo.running) sim.demo.start(Math.max(0, qn('cap', 1) - 1)); }, { once: true });
 if (Q.get('state')) sim.jump(Q.get('state'));
 // tela inicial: aparelho DESLIGADO — o usuário segura o botão ~3 s para ligar e ver o autoteste (?on=1 liga direto)
@@ -173,6 +177,7 @@ let last = performance.now(), simT = 0, frames = 0, fpsT = 0, first = true;
 const inletWorld = new THREE.Vector3();
 // a tela inicial já abre no ambiente do cenário selecionado (Ar limpo = oficina, com tripé);
 // capturas de comparação (ui=0) e ?studio=1 mantêm o estúdio branco
+let lastCovered = false, camBeforeCover = null;
 let lastScenery = (showUI && Q.get('studio') !== '1') || Q.get('scenario') ? null : world.scenario;
 // clicar num cenário (mesmo o já ativo, ex.: 'Ar limpo' na abertura) aplica o ambiente 3D correspondente
 document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('.gx-scen')) setTimeout(() => { lastScenery = null; }, 0); });
@@ -183,6 +188,12 @@ function frame(now) {
   const sdt = still ? 0 : dt * timeScale;
   simT += sdt;
   device.inletAnchor.getWorldPosition(inletWorld);
+  hand.update(dt, inletCovered && !kit.state.hoseAttached, inletWorld);
+  if (inletCovered !== lastCovered) {
+    lastCovered = inletCovered;
+    if (inletCovered && !kit.state.hoseAttached && held !== 'inlet') { camBeforeCover = { pos: camera.position.clone(), tgt: controls.target.clone() }; flyTo(inletWorld.clone().add(new THREE.Vector3(0.2, 0.08, 0.26)), inletWorld.clone().add(new THREE.Vector3(0, 0.02, 0)), 0.8); }
+    else if (!inletCovered && camBeforeCover) { flyTo(camBeforeCover.pos, camBeforeCover.tgt, 0.8); camBeforeCover = null; }
+  }
   kit.update(sdt, { inletWorld, time: simT });
   // ambiente 3D acompanha o cenário escolhido (a carga inicial fica no estúdio, exceto com ?scenario=)
   if (world.scenario !== lastScenery) { lastScenery = world.scenario; stage.setScenery?.(lastScenery); applyTripod(lastScenery); }
