@@ -32,7 +32,7 @@ scene.add(kit.group);
 // tripé: aparece nos ambientes por cenário (o estúdio/manual mantém o aparelho apoiado na mesa); o kit desce ao piso
 const tripod = buildTripod(); tripod.visible = false; scene.add(tripod);
 // ambientes já ajustados para o tripé (piso em -TRIPOD_H); os demais seguem com o aparelho apoiado até serem refeitos
-const TRIPOD_READY = new Set(['co-motor', 'deficiencia-o2']);
+const TRIPOD_READY = new Set(['limpo', 'confinado', 'vazamento-h2s', 'co-motor', 'deficiencia-o2', 'explosiva', 'enriquecimento-o2']);
 function applyTripod(id) { const on = TRIPOD_READY.has(id); tripod.visible = on; kit.group.position.y = on ? -TRIPOD_H : 0; }
 const fw = createFirmware();
 const audio = createAudio();

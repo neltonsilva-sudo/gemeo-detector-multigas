@@ -28,6 +28,9 @@ export function coMotor() {
   const up = new THREE.Mesh(new THREE.BoxGeometry(18, 5.8, 0.2), std({ roughness: 0.95 }, blockWallSet({ seed: 64, base: '#a39f97', rep: [11, 3.6] }))); up.position.set(1, gy + 1.2 + 2.9, wallZ - 0.01); G.add(up);
   G.add(box(18, 0.06, 0.03, PAINT.amareloSeg, [1, gy + 1.2, wallZ + 0.11]));
   const side = up.clone(); side.rotation.y = Math.PI / 2; side.position.set(-4.4, gy + 3.5, 0); G.add(side);
+  const side2 = up.clone(); side2.rotation.y = Math.PI / 2; side2.position.set(9.6, gy + 3.5, 0); G.add(side2);
+  const front = up.clone(); front.position.set(1, gy + 3.5, 6.0); G.add(front);
+  for (const w of [side, side2, front]) w.scale.y = 7 / 5.8;
   const colM = std({ roughness: 0.55, metalness: 0.5 }, rustSteelSet({ seed: 67, paint: '#3e4a52', rust: 0.5, rep: [0.5, 3], seams: 0 }));
   for (const x of [-2.6, 2.9, 8.2]) { G.add(box(0.3, 7, 0.3, colM, [x, gy + 3.5, wallZ + 0.25])); G.add(box(0.3, 0.6, 0.02, PAINT.amareloSeg, [x, gy + 0.3, wallZ + 0.41])); }
   const roll = new THREE.Mesh(new THREE.BoxGeometry(3.8, 4.2, 0.08), std({ roughness: 0.5, metalness: 0.6 }, corrugatedSet({ seed: 65, paint: '#6c757b', rep: [1, 14] })));
@@ -80,8 +83,25 @@ export function coMotor() {
 export function deficiencia() {
   const G = new THREE.Group();
   const gy = -TRIPOD_H;
-  const sun = SUN_DIR(-0.45, 0.55, 0.6);
-  G.add(makeSky({ zenith: [0.25, 0.38, 0.62], horizon: [0.78, 0.82, 0.88], ground: [0.33, 0.33, 0.32], sunDir: sun.toArray(), sunColor: [1.1, 1.05, 0.98], clouds: 0.6, overcast: 0.3 }));
+  // sala interna de armazenamento de N2: paredes de bloco pintadas, laje com luminárias, exaustor e porta fechada
+  const roomZ = -8.6, roomH = 4.2;
+  const wallSet = blockWallSet({ seed: 82, base: '#b9b6ae', rep: [9, 3] });
+  const wallM = std({ roughness: 0.92 }, wallSet);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(15, roomH, 0.2), wallM); back.position.set(2.5, gy + roomH / 2, roomZ); G.add(back);
+  for (const x of [-5, 10]) { const w = new THREE.Mesh(new THREE.BoxGeometry(0.2, roomH, 15), wallM); w.position.set(x, gy + roomH / 2, -1.1); G.add(w); }
+  const fw = new THREE.Mesh(new THREE.BoxGeometry(15, roomH, 0.2), wallM); fw.position.set(2.5, gy + roomH / 2, 6.4); G.add(fw);
+  const barM = std({ roughness: 0.8 }, blockWallSet({ seed: 83, base: '#5d6b74', rep: [9, 0.9] }));
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(15, 1.2, 0.04), barM); bar.position.set(2.5, gy + 0.6, roomZ + 0.12); G.add(bar);
+  for (const x of [-4.88, 9.88]) { const bb = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.2, 15), barM); bb.position.set(x, gy + 0.6, -1.1); G.add(bb); }
+  G.add(box(15, 0.05, 0.03, PAINT.amareloSeg, [2.5, gy + 1.2, roomZ + 0.15]));
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.2, 15.2), std({ roughness: 0.95 }, concreteSet({ seed: 84, base: '#9d9a94', rep: [4, 4], stains: 1.5 }))); slab.position.set(2.5, gy + roomH + 0.1, -1.1); G.add(slab);
+  const lampM = std({ color: 0x222222, emissive: new THREE.Color(0.95, 0.98, 1), emissiveIntensity: 3 });
+  for (const x of [-1.5, 2.5, 6.5]) for (const z of [-5.5, -1.5, 2.5]) { G.add(box(1.25, 0.06, 0.22, lampM, [x, gy + roomH - 0.05, z])); }
+  // porta corta-fogo fechada e exaustor na parede do fundo (renovação de ar da sala)
+  G.add(box(1.0, 2.1, 0.06, std({ roughness: 0.5, metalness: 0.4 }, wornPaintSet({ seed: 85, paint: '#7b8288', chips: 0.6, grime: 0.8 })), [-2.6, gy + 1.05, roomZ + 0.13]));
+  G.add(box(0.03, 0.12, 0.05, PAINT.aco, [-2.2, gy + 1.0, roomZ + 0.18]));
+  G.add(box(0.75, 0.75, 0.12, PAINT.escuro, [6.8, gy + 3.2, roomZ + 0.16]));
+  for (let i = 0; i < 6; i++) { const lv = box(0.66, 0.02, 0.08, PAINT.cinza, [6.8, gy + 2.92 + i * 0.11, roomZ + 0.23]); lv.rotation.x = 0.6; G.add(lv); }
   G.add(ground(gy, concreteSet({ seed: 72, base: '#8f8b84', joints: 2, rep: [40, 40], stains: 1.6 })));
   // base de concreto (radier) da área criogênica com borda amarela
   const pad = new THREE.Mesh(new THREE.BoxGeometry(9, 0.12, 6), std({ roughness: 0.9 }, concreteSet({ seed: 74, base: '#a6a29a', joints: 2, rep: [3, 2], stains: 1.2 }))); pad.position.set(2.5, gy + 0.06, -5.6); G.add(pad);
@@ -129,28 +149,24 @@ export function deficiencia() {
   vap.add(icyPipe(0.03, 1.9, [0.72, 0.25, 0.75], 'x', 0.04, 40));
   vap.position.set(0.4, gy + 0.12, -5.0); G.add(vap);
   const tank = new THREE.Group(); const white = std({ color: 0xeef0f0, roughness: 0.45, metalness: 0.15 }, wornPaintSet({ seed: 79, paint: '#e9ecec', chips: 0.3, grime: 0.5, rep: [3, 2] }));
-  tank.add(pipe(1.1, 7.0, white, [0, 4.2, 0], 'y', 48)); const dome = new THREE.Mesh(new THREE.SphereGeometry(1.1, 48, 16, 0, Math.PI * 2, 0, Math.PI / 2), white); dome.position.y = 7.7; tank.add(dome);
-  const dome2 = dome.clone(); dome2.rotation.x = Math.PI; dome2.position.y = 0.7; tank.add(dome2);
-  for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4; tank.add(box(0.14, 0.9, 0.14, PAINT.cinza, [Math.cos(a) * 0.85, 0.45, Math.sin(a) * 0.85])); }
-  tank.add(icyPipe(0.03, 1.4, [-1.2, 0.8, 0.3], 'y', 0.035, 41));
-  const tl = label(0.9, 0.3, { bg: '#ffffff', text: ['NITROGÊNIO LÍQUIDO', 'N₂ · UN 1977'], seed: 80 }); tl.position.set(0, 3.0, 1.105); tank.add(tl);
-  tank.position.set(4.6, gy + 0.12, -7.4); G.add(tank);
-  const fc = document.createElement('canvas'); fc.width = fc.height = 128; const fg = fc.getContext('2d');
-  fg.strokeStyle = '#c9cdd0'; fg.lineWidth = 5; fg.beginPath(); fg.moveTo(0, 64); fg.lineTo(64, 0); fg.lineTo(128, 64); fg.lineTo(64, 128); fg.closePath(); fg.stroke();
-  const ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(160, 16); ft.anisotropy = 8;
-  const fence = new THREE.Mesh(new THREE.PlaneGeometry(16, 2.2), new THREE.MeshStandardMaterial({ map: ft, alphaTest: 0.4, side: THREE.DoubleSide, metalness: 0.6, roughness: 0.4 }));
-  fence.position.set(2.5, gy + 1.1 + 0.12, -8.7); G.add(fence);
-  for (let x = -5.5; x <= 10.5; x += 2.8) G.add(pipe(0.03, 2.3, PAINT.aco, [x, gy + 1.27, -8.7], 'y', 10));
+  tank.add(pipe(0.75, 1.9, white, [0, 1.85, 0], 'y', 48)); const dome = new THREE.Mesh(new THREE.SphereGeometry(0.75, 48, 16, 0, Math.PI * 2, 0, Math.PI / 2), white); dome.position.y = 2.8; tank.add(dome);
+  const dome2 = dome.clone(); dome2.rotation.x = Math.PI; dome2.position.y = 0.9; tank.add(dome2);
+  for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4; tank.add(box(0.1, 0.6, 0.1, PAINT.cinza, [Math.cos(a) * 0.6, 0.3, Math.sin(a) * 0.6])); }
+  tank.add(icyPipe(0.03, 1.2, [-0.85, 0.7, 0.3], 'y', 0.035, 41));
+  const tl = label(0.9, 0.3, { bg: '#ffffff', text: ['NITROGÊNIO LÍQUIDO', 'N₂ · UN 1977'], seed: 80 }); tl.position.set(0, 2.0, 0.755); tank.add(tl);
+  tank.position.set(4.8, gy + 0.12, -7.3); G.add(tank);
   // ---- névoa fria: pluma da válvula de alívio caindo, vapor nos vaporizadores e manto rasteiro escorrendo pelo piso
   const vent = makeParticles({ mode: 'jet', count: 260, origin: [0.95, my + 0.22, mz], dir: [0.15, -1, 0.1], speed: 0.22, spread: 0.45, life: 6, size: [0.04, 0.9], color: [0.95, 0.97, 1.0], lit: 1.05, opacity: 0.3, wind: [0.07, 0.055, 0.025], turb: 0.07, soft: 1.8, seed: 31 });
   const vapFog = makeParticles({ mode: 'jet', count: 160, origin: [1.1, gy + 0.9, -4.9], dir: [0.1, -1, 0.5], speed: 0.12, spread: 1.2, life: 8, size: [0.3, 1.5], color: [0.95, 0.97, 1.0], lit: 1.05, opacity: 0.18, wind: [0.04, 0.03, 0.05], turb: 0.1, soft: 1.6, seed: 32 });
   const blanket = makeParticles({ mode: 'box', count: 170, box: [[-1.0, gy + 0.02, -5.4], [3.2, gy + 0.25, -1.8]], size: [0.5, 1.1], color: [0.93, 0.96, 1.0], lit: 1.05, opacity: 0.15, life: 9, wind: [0.16, -0.005, 0.1], turb: 0.1, soft: 1.8, seed: 33 });
   G.add(blanket, vapFog, vent);
   shadowless(G);
+  const fx = [];
+  for (const x of [-1.5, 2.5, 6.5]) for (const z of [-5.5, -1.5, 2.5]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.3), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.95, 0.98, 1).multiplyScalar(7), side: THREE.DoubleSide })); p.rotation.x = Math.PI / 2; p.position.set(x, gy + roomH - 0.1, z); fx.push(p); }
   return {
     group: G, particles: [blanket, vapFog, vent],
-    look: { keyDir: sun.toArray(), keyColor: [1.0, 0.98, 0.95], keyI: 2.0, exposure: 0.85, envI: 1.0, fog: 0.014, fogColor: [0.74, 0.78, 0.84], contactOpacity: 0, bloom: 0.16, vignette: 0.15, shadowR: 6 },
-    bake: { hemi: [[0.62, 0.7, 0.85], [0.4, 0.39, 0.37], 1.4], sun: 2.0 },
+    look: { keyDir: [0.2, 1.0, 0.3], keyColor: [0.95, 0.98, 1.0], keyI: 1.5, exposure: 1.1, envI: 1.0, fog: 0.025, fogColor: [0.62, 0.66, 0.7], contactOpacity: 0, bloom: 0.2, vignette: 0.2, shadowR: 16 },
+    bake: { hemi: [[0.6, 0.63, 0.66], [0.3, 0.29, 0.28], 1.1], sun: 1.0, extras: fx },
   };
 }
 

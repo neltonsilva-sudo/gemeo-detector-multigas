@@ -4,56 +4,50 @@ import {
   concreteSet, rustSteelSet, treadPlateSet, corrugatedSet, blockWallSet, std, makeSky, makeSign, makeParticles,
   pipe, flange, box, railing, RoundedBoxGeometry, rng,
 } from './scene_env_kit.js';
+import { TRIPOD_H } from './tripod.js';
+import { room, noticeBoard, workbench, floorGrating, pumpSet, lamp } from './scene_env_a_room.js';
 import { SUN_DIR, shadowless, ground, mureta, signPost, drum, cylinderBottle, PAINT } from './scene_env_common.js';
 
 export function limpo() {
   const G = new THREE.Group();
-  const sun = SUN_DIR(-0.55, 0.72, 0.45);
-  G.add(makeSky({ zenith: [0.16, 0.34, 0.78], horizon: [0.78, 0.86, 0.98], ground: [0.32, 0.31, 0.29], sunDir: sun.toArray(), sunColor: [1.4, 1.25, 1.0], clouds: 0.3 }));
-  G.add(mureta());
-  const gy = -0.95;
-  G.add(ground(gy, concreteSet({ seed: 21, base: '#9c9890', joints: 2, rep: [40, 40] })));
-  // faixa de circulação de pedestres (amarela, NR-26) e linha de borda
-  const paintM = std({ color: 0xd9a900, roughness: 0.7 });
-  for (const z of [-1.7, -3.1]) { const s = new THREE.Mesh(new THREE.PlaneGeometry(40, 0.1), paintM); s.rotation.x = -Math.PI / 2; s.position.set(0, gy + 0.002, z); G.add(s); }
-  // dormentes de tubulação (pipe sleepers) com linhas de processo baixas — entram no quadro hero
-  const conc = std({ roughness: 0.95 }, concreteSet({ seed: 23, base: '#8e8a83', rep: [1, 0.4] }));
-  const lines = [[0.16, PAINT.cinza], [0.11, PAINT.amareloSeg], [0.08, PAINT.verde], [0.2, PAINT.cinza], [0.06, PAINT.vermelho]];
-  for (let x = -8; x <= 10; x += 3.2) G.add(box(0.35, 0.4, 2.4, conc, [x, gy + 0.2, -5.2]));
-  lines.forEach(([r, m], i) => { const z = -4.3 - i * 0.42; G.add(pipe(r, 26, m, [1, gy + 0.4 + r, z])); for (let x = -9; x < 11; x += 6.1) G.add(flange(r, m, [x + i * 0.7, gy + 0.4 + r, z])); });
-  // galpão ao fundo: chapa trapezoidal, portão de enrolar, janelas zenitais
-  const corr = corrugatedSet({ seed: 25, paint: '#b9c1c4', rep: [18, 1] });
-  const shed = new THREE.Mesh(new THREE.BoxGeometry(44, 9, 0.3), std({ roughness: 0.55, metalness: 0.5 }, corr)); shed.position.set(2, gy + 4.5, -16); G.add(shed);
-  const door = new THREE.Mesh(new THREE.BoxGeometry(5, 5.2, 0.1), std({ roughness: 0.5, metalness: 0.6 }, corrugatedSet({ seed: 26, paint: '#5f6a72', rep: [1, 12] })));
-  door.rotation.z = 0; door.position.set(4, gy + 2.6, -15.8); G.add(door);
-  const band = box(44, 0.6, 0.32, std({ color: 0x1d4f8a, roughness: 0.5 }), [2, gy + 8.4, -15.98]); G.add(band);
-  // silo/tanque e estrutura metálica
-  const silo = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 9, 48), std({ color: 0xd9dcdc, roughness: 0.35, metalness: 0.6 })); silo.position.set(13, gy + 4.5, -12); G.add(silo);
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(2.2, 1.2, 48), silo.material); cone.position.set(13, gy + 9.6, -12); G.add(cone);
-  for (let x = -14; x <= -6; x += 4) for (const z of [-9, -12]) G.add(box(0.25, 6, 0.25, PAINT.escuro, [x, gy + 3, z]));
-  G.add(box(8.5, 0.3, 3.4, PAINT.escuro, [-10, gy + 6, -10.5]));
-  // chaminé listrada ao longe
-  const stack = new THREE.Group();
-  for (let i = 0; i < 6; i++) stack.add(pipe(1.1 - i * 0.05, 5, i % 2 ? PAINT.vermelho : std({ color: 0xeeeeee, roughness: 0.6 }), [0, i * 5 + 2.5, 0], 'y', 32));
-  stack.position.set(-26, gy, -48); G.add(stack);
-  // tambores e placa de EPI obrigatório
-  G.add(drum(0x1d4f8a, [2.6, gy, -3.0], 0.3), drum(0x1d4f8a, [3.25, gy, -3.15], 1.2), drum(0x9e2a20, [2.9, gy, -2.45], 2));
-  const sign = makeSign({ w: 0.9, h: 0.6, kind: 'aviso', title: 'AVISO', lines: ['ÁREA INDUSTRIAL', 'USO OBRIGATÓRIO DE EPI:', 'CAPACETE, ÓCULOS E DETECTOR'], seed: 31 });
-  G.add(signPost(sign, [-1.2, gy, -3.6], 1.05, PAINT.aco));
+  const fy = -TRIPOD_H, H = 3.2, X0 = -3.2, X1 = 4.6, Z0 = -3.6, Z1 = 2.8;
+  const wallSet = blockWallSet({ seed: 21, base: '#dcd8d0', rep: [10, 4] });
+  const floorM = std({ roughness: 0.42, metalness: 0.05, color: 0xb9c4bc }, concreteSet({ seed: 22, base: '#7f8b84', joints: 1, rep: [2, 2], stains: 0.35 }));
+  G.add(room({ fy, x0: X0, x1: X1, z0: Z0, z1: Z1, h: H, floor: floorM, wall: std({ roughness: 0.85 }, wallSet), ceil: std({ color: 0xe6e6e2, roughness: 0.9 }),
+    band: std({ roughness: 0.6, color: 0x7d97ad }, wallSet), bandH: 1.05 }));
+  // faixas amarelas de demarcação (NR-26) em frente à bancada e ao armário
+  const paintM = std({ color: 0xd9a900, roughness: 0.55 });
+  for (const [w, d, x, z] of [[4.2, 0.08, 1.9, -2.55], [0.08, 1.1, -0.15, -3.05], [0.08, 1.4, 3.35, -2.9]]) { const s = new THREE.Mesh(new THREE.PlaneGeometry(w, d), paintM); s.rotation.x = -Math.PI / 2; s.position.set(x, fy + 0.002, z); G.add(s); }
+  // bancada ao fundo, quadro de avisos, placa de EPI
+  const wb = workbench(2.6, fy + 0.9, fy); wb.position.set(1.95, 0, Z0 + 0.4); G.add(wb);
+  const nb = noticeBoard(0.95, 0.62); nb.position.set(0.5, 0.16, Z0 + 0.005); G.add(nb);
+  const sign = makeSign({ w: 0.6, h: 0.4, kind: 'aviso', title: 'AVISO', lines: ['USO OBRIGATÓRIO DE EPI:', 'ÓCULOS, LUVAS E', 'DETECTOR DE GASES'], seed: 31 });
+  sign.position.set(2.4, 0.2, Z0 + 0.006); G.add(sign);
+  // armário de ferramentas e extintor na parede lateral
+  const cab = std({ color: 0x8a2a22, roughness: 0.45, metalness: 0.4 });
+  G.add(box(0.9, 1.8, 0.5, cab, [3.95, fy + 0.9, Z0 + 0.3], 0.01));
+  for (const x of [3.73, 4.17]) G.add(box(0.02, 0.2, 0.03, PAINT.escuro, [x, fy + 1.0, Z0 + 0.56]));
+  G.add(box(0.005, 1.7, 0.005, PAINT.escuro, [3.95, fy + 0.9, Z0 + 0.555]));
+  const ext = cylinderBottle({ body: 0xc0201a, h: 0.55, r: 0.085 }); ext.position.set(X1 - 0.12, fy + 0.25, -2.0); G.add(ext);
+  G.add(box(0.3, 0.3, 0.02, std({ color: 0xc0201a, roughness: 0.5 }), [X1 - 0.01, fy + 1.65, -2.0]));
+  // tambor de coleta e carrinho ao lado
+  G.add(drum(0x1d4f8a, [-1.6, fy, -3.1], 0.3));
+  // luminárias de teto (painéis LED) — iluminação clara e uniforme
+  for (const x of [-1.5, 0.8, 3.1]) for (const z of [-2.2, 0.4]) G.add(lamp('painel', [x, fy + H - 0.03, z], 3.2));
   shadowless(G);
   return {
     group: G,
-    look: { keyDir: sun.toArray(), keyColor: [1.0, 0.95, 0.86], keyI: 3.0, exposure: 0.82, envI: 1.0, fog: 0.006, fogColor: [0.62, 0.7, 0.82], contactOpacity: 0.72, bloom: 0.18, vignette: 0.12, shadowR: 5 },
-    bake: { hemi: [[0.62, 0.72, 0.95], [0.4, 0.38, 0.34], 1.4], sun: 3.0 },
+    look: { keyDir: [0.25, 1.0, 0.35], keyColor: [1.0, 0.98, 0.95], keyI: 2.2, exposure: 1.0, envI: 1.15, fog: 0.004, fogColor: [0.8, 0.8, 0.78], contactOpacity: 0, bloom: 0.15, vignette: 0.12, shadowR: 14 },
+    bake: { hemi: [[0.95, 0.95, 0.93], [0.55, 0.57, 0.55], 1.6], sun: 1.6 },
   };
 }
 
 // ============================================================================ 2. ESPAÇO CONFINADO — interior de tanque/galeria
 
 export function confinado() {
-  const G = new THREE.Group();
+  const ROOT = new THREE.Group(), G = new THREE.Group(); G.position.y = -TRIPOD_H; ROOT.add(G);
   // piso de chapa xadrez com boca de visita
-  const hole = { x: -0.5, z: -0.32, r: 0.32 };
+  const hole = { x: 1.2, z: -1.5, r: 0.32 };
   const shape = new THREE.Shape(); shape.moveTo(-5, -5); shape.lineTo(5, -5); shape.lineTo(5, 5); shape.lineTo(-5, 5); shape.closePath();
   const hp = new THREE.Path(); hp.absarc(hole.x, -hole.z, hole.r, 0, Math.PI * 2, true); shape.holes.push(hp);
   const deckGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.012, bevelEnabled: false, curveSegments: 48 }); deckGeo.rotateX(-Math.PI / 2); deckGeo.translate(0, -0.012, 0);
@@ -94,63 +88,67 @@ export function confinado() {
   // poeira no ar (fica visível no feixe)
   const dust = makeParticles({ mode: 'box', count: 900, box: [[-2.2, 0.02, -2.6], [2.6, 1.6, 1.0]], size: [0.0015, 0.004], color: [1.0, 0.9, 0.75], lit: 1.6, opacity: 0.5, life: 9, wind: [0.04, 0.01, 0.02], turb: 0.05, blending: 'add', soft: 2.5 });
   G.add(dust);
-  shadowless(G);
+  shadowless(ROOT);
   return {
-    group: G, particles: [dust],
-    look: { keyDir: [0.62, 0.55, 0.58], keyColor: [1.0, 0.92, 0.78], keyI: 2.4, exposure: 1.35, envI: 0.85, fog: 0.16, fogColor: [0.06, 0.05, 0.04], contactOpacity: 0.85, bloom: 0.35, vignette: 0.42, shadowR: 10,
-      spot: { pos: [1.7, 1.3, 1.6], target: [0.2, 0.0, -1.0], color: [1.0, 0.9, 0.75], intensity: 9, angle: 0.55, penumbra: 0.7, distance: 9 } },
+    group: ROOT, particles: [dust],
+    look: { keyDir: [0.62, 0.55, 0.58], keyColor: [1.0, 0.92, 0.78], keyI: 2.4, exposure: 1.35, envI: 0.85, fog: 0.16, fogColor: [0.06, 0.05, 0.04], contactOpacity: 0, bloom: 0.35, vignette: 0.42, shadowR: 10,
+      spot: { pos: [1.7, 1.3, 1.6], target: [0.2, -TRIPOD_H, -1.0], color: [1.0, 0.9, 0.75], intensity: 9, angle: 0.55, penumbra: 0.7, distance: 9 } },
     bake: { hemi: [[0.16, 0.13, 0.1], [0.08, 0.07, 0.06], 1.0], sun: 2.0,
       extras: [(() => { const p = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.0), new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0.9, 0.75).multiplyScalar(4), side: THREE.DoubleSide })); p.position.set(3, 2.2, 3); p.lookAt(0, 0, 0); return p; })()] },
   };
 }
 
-// ============================================================================ 3. VAZAMENTO DE H2S — ETE/refinaria, tarde nublada
-
+// ============================================================================ 3. VAZAMENTO DE H2S — casa de bombas / estação elevatória de esgoto fechada
 export function vazamento() {
   const G = new THREE.Group();
-  G.add(makeSky({ zenith: [0.42, 0.45, 0.5], horizon: [0.72, 0.74, 0.76], ground: [0.3, 0.3, 0.29], sunDir: [0.3, 0.55, -0.6], sunColor: [0.6, 0.58, 0.55], sunGlow: 0.15, clouds: 0.75, cloudColor: [0.78, 0.79, 0.8], overcast: 0.8 }));
-  const gy = -0.62;
-  G.add(ground(gy, concreteSet({ seed: 51, base: '#7f7c75', joints: 1, rep: [50, 50], stains: 1.6 })));
-  // pedestal de concreto (suporte de tubulação) onde o aparelho está
-  const ped = new THREE.Mesh(new RoundedBoxGeometry(1.7, 0.62, 0.62, 4, 0.02), std({ roughness: 0.95 }, concreteSet({ seed: 52, base: '#9a968e', rep: [1, 0.4], stains: 2 })));
-  ped.position.set(0.25, -0.31, -0.1); G.add(ped);
-  // linhas de processo e válvula gaveta com vazamento no castelo
-  const pm = std({ color: 0x7b8287, roughness: 0.45, metalness: 0.55 });
-  const yel = std({ color: 0xc89a10, roughness: 0.5, metalness: 0.3 });
-  G.add(pipe(0.16, 20, pm, [0, gy + 0.55, -1.75]), pipe(0.1, 20, yel, [0, gy + 0.45, -2.3]), pipe(0.07, 20, pm, [0, gy + 0.35, -2.7]));
-  for (let x = -8; x <= 8; x += 2.2) { G.add(flange(0.16, pm, [x, gy + 0.55, -1.75])); G.add(box(0.3, 0.32, 1.4, std({ roughness: 0.95, color: 0x8e8a83 }), [x + 1.1, gy + 0.16, -2.2])); }
+  const gy = -TRIPOD_H, H = 3.0, X0 = -3.0, X1 = 4.6, Z0 = -3.6, Z1 = 2.5;
+  const wallSet = blockWallSet({ seed: 54, base: '#9a968c', rep: [9.5, 3.8] });
+  const floorM = std({ roughness: 0.6 }, concreteSet({ seed: 51, base: '#6e6b63', joints: 1, rep: [2, 2], stains: 2.6 }));
+  G.add(room({ fy: gy, x0: X0, x1: X1, z0: Z0, z1: Z1, h: H, floor: floorM, wall: std({ roughness: 0.92 }, wallSet), ceil: std({ roughness: 0.95, color: 0x8a8780 }, concreteSet({ seed: 56, base: '#8a8780', rep: [2, 2] })),
+    band: std({ roughness: 0.7, color: 0x5d6b5f }, wallSet), bandH: 1.2 }));
+  const pm = std({ roughness: 0.55, metalness: 0.5 }, rustSteelSet({ seed: 57, paint: '#596660', rust: 0.7, rep: [1, 4], seams: 0 }));
+  const conc = std({ roughness: 0.95, color: 0x8e8a83 });
+  // bombas ao fundo com recalques subindo ao barrilete
+  for (const [x, c] of [[0.9, 0x2f5d8a], [2.8, 0x2f5d8a]]) G.add(pumpSet([x, Z0 + 0.65], gy, { motor: c, pipeMat: pm, baseMat: conc, riserTop: gy + 2.35 }));
+  G.add(pipe(0.1, X1 - X0, pm, [(X0 + X1) / 2, gy + 2.35, Z0 + 0.65]));
+  // canaleta com grade de piso entre as bombas e a linha que vaza
+  G.add(floorGrating(X1 - X0 - 0.4, 0.45, gy + 0.001, [(X0 + X1) / 2 + 0.1, -2.35]));
+  // linha de esgoto/gás e válvula gaveta com vazamento no castelo
+  G.add(pipe(0.16, X1 - X0, pm, [(X0 + X1) / 2, gy + 0.55, -1.75]));
+  for (let x = X0 + 0.8; x < X1; x += 2.2) { G.add(flange(0.16, pm, [x, gy + 0.55, -1.75])); G.add(box(0.3, 0.38, 0.5, conc, [x + 1.1, gy + 0.19, -1.75])); }
   const vx = 1.75, vz = -1.75, vy = gy + 0.55;
   const vb = new THREE.Group();
   vb.add(new THREE.Mesh(new THREE.SphereGeometry(0.2, 32, 16), pm));
   vb.add(flange(0.16, pm, [-0.2, 0, 0]), flange(0.16, pm, [0.2, 0, 0]));
   vb.add(pipe(0.09, 0.35, pm, [0, 0.3, 0], 'y'));
-  const bonnet = flange(0.09, pm, [0, 0.47, 0], 'y'); vb.add(bonnet);
+  vb.add(flange(0.09, pm, [0, 0.47, 0], 'y'));
   vb.add(pipe(0.02, 0.4, PAINT.aco, [0, 0.66, 0], 'y', 12));
   const hw = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.016, 10, 40), PAINT.vermelho); hw.rotation.x = Math.PI / 2; hw.position.y = 0.82; vb.add(hw);
   for (let i = 0; i < 3; i++) { const sp = pipe(0.008, 0.34, PAINT.vermelho, [0, 0.82, 0], 'x', 6); sp.rotation.y = i * Math.PI / 3; vb.add(sp); }
+  // crostas amarelas de enxofre no castelo (vazamento crônico de H2S)
+  const sulf = std({ color: 0xd6c23a, roughness: 0.9 }), R = rng(58);
+  for (let i = 0; i < 14; i++) { const a = R() * Math.PI * 2, s = new THREE.Mesh(new THREE.IcosahedronGeometry(0.008 + R() * 0.012, 0), sulf); s.position.set(Math.cos(a) * 0.13, 0.46 + R() * 0.05, Math.sin(a) * 0.13); vb.add(s); }
   vb.position.set(vx, vy, vz); G.add(vb);
-  // mancha de produto/condensado sob a válvula
-  const stain = new THREE.Mesh(new THREE.CircleGeometry(0.6, 32), std({ color: 0x3b3a30, roughness: 0.25, transparent: true, opacity: 0.55 })); stain.rotation.x = -Math.PI / 2; stain.position.set(vx + 0.2, gy + 0.003, vz + 0.3); G.add(stain);
-  // pluma amarelada (gás + vapor d'água) saindo do castelo, arrastada pelo vento
-  const plume = makeParticles({ mode: 'jet', count: 700, origin: [vx, vy + 0.48, vz], dir: [0.15, 1, 0.25], speed: 0.22, spread: 0.55, life: 6.5, size: [0.06, 1.1], color: [0.86, 0.83, 0.52], lit: 1.15, opacity: 0.2, wind: [0.07, 0.006, 0.03], turb: 0.12, soft: 2.2 });
-  const jetCore = makeParticles({ mode: 'jet', count: 160, origin: [vx, vy + 0.48, vz], dir: [0.4, 1, 0.3], speed: 0.9, spread: 0.12, life: 0.9, size: [0.02, 0.22], color: [0.95, 0.93, 0.75], lit: 1.2, opacity: 0.28, soft: 2.5, seed: 9 });
-  G.add(plume, jetCore);
-  // decantador circular de concreto + guarda-corpo, prédio de grades ao fundo
-  const clar = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.2, 1.3, 64, 1, true), std({ roughness: 0.95, side: THREE.DoubleSide }, concreteSet({ seed: 53, base: '#8f8b84', rep: [10, 1] })));
-  clar.position.set(4.5, gy + 0.65, -8.5); G.add(clar);
-  const water = new THREE.Mesh(new THREE.CircleGeometry(4.15, 48), std({ color: 0x3d4a3a, roughness: 0.15, metalness: 0.1 })); water.rotation.x = -Math.PI / 2; water.position.set(4.5, gy + 1.1, -8.5); G.add(water);
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(4.2, 0.03, 8, 96), PAINT.amareloSeg); ring.rotation.x = Math.PI / 2; ring.position.set(4.5, gy + 2.3, -8.5); G.add(ring);
-  for (let a = 0; a < Math.PI * 2; a += Math.PI / 10) G.add(pipe(0.025, 1.0, PAINT.amareloSeg, [4.5 + Math.cos(a) * 4.2, gy + 1.8, -8.5 + Math.sin(a) * 4.2], 'y', 8));
-  const bw = new THREE.Mesh(new THREE.BoxGeometry(9, 4, 5), std({ roughness: 0.95 }, blockWallSet({ seed: 54, rep: [6, 2.6] }))); bw.position.set(-6.5, gy + 2, -12); G.add(bw);
-  G.add(railing(6, PAINT.amareloSeg, [-1.5, gy, -4.2]));
-  // placa de perigo H2S
-  const sign = makeSign({ w: 0.9, h: 0.6, kind: 'perigo', title: 'PERIGO', lines: ['H₂S — GÁS SULFÍDRICO', 'TÓXICO / INFLAMÁVEL', 'USE DETECTOR PORTÁTIL'], icon: { type: 'tri', inner: 'H₂S' }, seed: 55, dirt: 0.25 });
-  G.add(signPost(sign, [-1.05, gy, -3.3], 0.72, PAINT.aco));
+  const stain = new THREE.Mesh(new THREE.CircleGeometry(0.6, 32), std({ color: 0x2f2e26, roughness: 0.15, transparent: true, opacity: 0.6 })); stain.rotation.x = -Math.PI / 2; stain.position.set(vx + 0.1, gy + 0.003, vz + 0.35); G.add(stain);
+  // pluma amarelada (gás + vapor) saindo do castelo e derivando para trás do aparelho (ar parado, H2S mais denso que o ar)
+  const plume = makeParticles({ mode: 'jet', count: 420, origin: [vx, vy + 0.48, vz], dir: [-0.6, 0.45, 0.15], speed: 0.22, spread: 0.45, life: 6.5, size: [0.05, 0.6], color: [0.82, 0.8, 0.5], lit: 0.75, opacity: 0.075, wind: [-0.035, -0.012, 0.01], turb: 0.1, soft: 2.2 });
+  const jetCore = makeParticles({ mode: 'jet', count: 160, origin: [vx, vy + 0.48, vz], dir: [-0.5, 0.6, 0.3], speed: 0.9, spread: 0.12, life: 0.9, size: [0.02, 0.16], color: [0.9, 0.88, 0.72], lit: 0.8, opacity: 0.12, soft: 2.5, seed: 9 });
+  // névoa parada (ventilação deficiente)
+  const haze = makeParticles({ mode: 'box', count: 70, box: [[-0.5, gy, -3.4], [4.4, gy + 1.4, -1.0]], size: [0.6, 1.4], color: [0.72, 0.72, 0.6], lit: 0.8, opacity: 0.05, life: 14, wind: [-0.02, 0, 0], turb: 0.08, seed: 13, soft: 2.0 });
+  G.add(plume, jetCore, haze);
+  // exaustor parado e empoeirado na parede lateral, arandelas blindadas
+  const fan = new THREE.Group(); fan.add(box(0.62, 0.62, 0.12, std({ color: 0x55595b, roughness: 0.8, metalness: 0.4 }), [0, 0, 0]));
+  for (let i = 0; i < 4; i++) { const b = box(0.24, 0.07, 0.01, std({ color: 0x3c3f40, roughness: 0.8 }), [0, 0, 0.065]); b.rotation.z = i * Math.PI / 2 + 0.3; b.translateX(0.12); fan.add(b); }
+  fan.position.set(X1 - 0.06, gy + 2.0, -1.4); fan.rotation.y = -Math.PI / 2; G.add(fan);
+  for (const x of [-0.6, 2.0]) G.add(lamp('arandela', [x, gy + 2.1, Z0], 1.6, [1.0, 0.9, 0.7]));
+  // placa de perigo H2S na parede do fundo
+  const sign = makeSign({ w: 0.7, h: 0.48, kind: 'perigo', title: 'PERIGO — H₂S', lines: ['GÁS SULFÍDRICO', 'TÓXICO / INFLAMÁVEL', 'USE DETECTOR PORTÁTIL'], icon: { type: 'tri', inner: 'H₂S' }, seed: 55, dirt: 0.3 });
+  sign.position.set(0.7, -0.3, Z0 + 0.03); G.add(sign);
   shadowless(G);
   return {
-    group: G, particles: [plume, jetCore],
-    look: { keyDir: [0.2, 1.0, 0.35], keyColor: [0.92, 0.94, 1.0], keyI: 1.0, exposure: 1.05, envI: 1.0, fog: 0.03, fogColor: [0.6, 0.62, 0.64], contactOpacity: 0.8, bloom: 0.22, vignette: 0.18, shadowR: 24 },
-    bake: { hemi: [[0.72, 0.74, 0.78], [0.33, 0.32, 0.3], 1.6], sun: 0.8 },
+    group: G, particles: [plume, jetCore, haze],
+    look: { keyDir: [0.3, 1.0, 0.4], keyColor: [1.0, 0.9, 0.74], keyI: 1.1, exposure: 1.15, envI: 0.9, fog: 0.07, fogColor: [0.34, 0.34, 0.3], contactOpacity: 0, bloom: 0.25, vignette: 0.3, shadowR: 16 },
+    bake: { hemi: [[0.55, 0.53, 0.47], [0.25, 0.24, 0.21], 1.2], sun: 0.9 },
   };
 }
 
