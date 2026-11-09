@@ -185,7 +185,7 @@ export function createDemo(sim) {
       hl('[data-k="mute"]');
       await say('Este botão liga e desliga o som da sirene, e o do lado alterna o tema claro e escuro.');
       hl('.gx-views');
-      await say('Estas são as câmeras: Herói, Foto, Frente, Trás, Visor, Kit e Kit foto. Clique para ver o aparelho de cada ângulo. Você também pode girar a cena arrastando com o mouse e aproximar com a rolagem.');
+      await say('Estas são as câmeras: Principal, Foto, Frente, Trás, Visor, Kit e Kit foto. Clique para ver o aparelho de cada ângulo. Você também pode girar a cena arrastando com o mouse e aproximar com a rolagem.');
       hl('.gx-hud');
       await say('No painel da esquerda, o quadro O aparelho diz traduz, em português, tudo o que o detector está fazendo e o que você deve fazer. A etiqueta colorida mostra o estado: verde em operação normal, amarela em atenção, vermelha em alarme. Os ícones ao lado acendem quando a sirene, as luzes, o vibrador e a bomba estão ativos.');
       hl('.gx-gas[data-gas="H2S"]');

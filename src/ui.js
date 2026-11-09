@@ -7,7 +7,7 @@ import {
 import { ROUTINES, createRoutineEngine, LEVEL_DWELL, TRANSPORT } from './ui_routines.js';
 
 const CAMS = [
-  ['hero', 'Herói'], ['ref1', 'Foto'], ['front', 'Frente'], ['back', 'Trás'], ['lcd', 'Visor'], ['kit', 'Kit'], ['ref2', 'Kit · foto'],
+  ['hero', 'Principal'], ['ref1', 'Foto'], ['front', 'Frente'], ['back', 'Trás'], ['lcd', 'Visor'], ['kit', 'Kit'], ['ref2', 'Kit · foto'],
 ];
 const SCEN_TAGS = {
   limpo: ['O₂ 20,9 %'], confinado: ['CH₄ topo', 'H₂S fundo', 'O₂ ↓'], 'vazamento-h2s': ['H₂S', 'rajadas'],
