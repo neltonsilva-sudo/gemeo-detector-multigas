@@ -79,12 +79,16 @@ export function createDemo(sim) {
   const wrap = document.createElement('div'); wrap.className = 'dm-wrap';
   const btn = document.createElement('button'); btn.className = 'dm-btn';
   const skip = document.createElement('button'); skip.className = 'dm-skip'; skip.textContent = 'Pular ⏭'; skip.title = 'Pular para o próximo capítulo';
-  wrap.append(btn, skip);
+  const btn2 = document.createElement('button'); btn2.className = 'dm-btn dm-b2';
+  wrap.append(btn, btn2, skip);
   const hlBox = document.createElement('div'); hlBox.className = 'dm-hl';
   const qBox = document.createElement('div'); qBox.className = 'dm-q'; qBox.setAttribute('role', 'dialog'); qBox.setAttribute('aria-label', 'Avaliação');
   document.body.append(wrap, hlBox, qBox);
-  const idleLabel = '▶ Demonstração narrada (voz Francisca)';
-  btn.textContent = idleLabel;
+  const idleLabel = '▶ Explicação';
+  const idleLabel2 = '▶ Demonstração';
+  btn.textContent = idleLabel; btn2.textContent = idleLabel2;
+  btn.title = 'Como funciona o equipamento (narrado pela Francisca)'; btn2.title = 'Como avaliar cada agente: H₂S, CO, O₂ e inflamáveis';
+  const st2 = document.createElement('style'); st2.textContent = '.dm-b2{background:rgba(28,22,18,.55);color:#fff;border:1px solid rgba(255,255,255,.35);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)} .dm-wrap[data-on="1"] .dm-btn:not([data-on="1"]){display:none}'; document.head.append(st2);
 
   // ---------- destaque ----------
   let hlEl = null;
@@ -146,7 +150,7 @@ export function createDemo(sim) {
   const CH = [
     ['Apresentação', async () => {
       kitOff(); clean(); sim.cam('hero'); sim.jump('run');
-      await say('Olá! Eu sou a Francisca. Nesta demonstração vou explicar, passo a passo, o detector multigás com bomba: as partes do aparelho, o visor, cada informação e cada botão do painel, os alarmes, o teste de resposta, a calibração completa, e no final faremos uma avaliação com dez perguntas.');
+      await say('Olá! Eu sou a Francisca. Nesta explicação vou mostrar, passo a passo, o detector multigás com bomba: as partes do aparelho, o visor, cada informação e cada botão do painel, os alarmes, o teste de resposta, a calibração completa, e no final faremos uma avaliação com dez perguntas.');
       await say('Este aparelho monitora quatro gases ao mesmo tempo. Sulfeto de hidrogênio, o H₂S, e monóxido de carbono, o CO, em partes por milhão. Oxigênio, em porcentagem do volume. E gases inflamáveis, em porcentagem do limite inferior de explosividade, o LEL. Ele é um equipamento de proteção pessoal: avisa quando a atmosfera fica perigosa, mas quem salva vidas é a reação correta do trabalhador.');
     }],
     ['O aparelho', async () => {
@@ -274,9 +278,66 @@ export function createDemo(sim) {
       await say(`Você acertou ${ok} de ${QUIZ.length} perguntas, ${pct} por cento. ${pass ? 'Parabéns, você foi aprovado! Continue praticando com os cenários e roteiros.' : 'Ainda não atingiu os setenta por cento. Revise a demonstração e tente novamente; a prática com os roteiros ajuda bastante.'}`);
       await wait(4000);
       qBox.style.display = 'none';
-      await say('Fim da demonstração. Lembre-se: confira o aparelho todos os dias, respeite os alarmes e nunca entre em um local sem antes medir a atmosfera. Até a próxima!');
+      await say('Fim da explicação. Depois, veja também o módulo Demonstração, que mostra como avaliar cada agente. Lembre-se: confira o aparelho todos os dias, respeite os alarmes e nunca entre em um local sem antes medir a atmosfera. Até a próxima!');
     }],
   ];
+
+
+  // ---------- módulo DEMONSTRAÇÃO: como avaliar cada agente ----------
+  const R = () => sim.fw.out?.readings || {};
+  const n0 = (v) => Math.round(v || 0), n1 = (v) => (v || 0).toFixed(1).replace('.', ' vírgula ');
+  const scen = async (id) => { kitOff(); sim.world.setScenario(id); sim.jump('run'); sim.cam('hero'); await wait(1200); };
+  const CH2 = [
+    ['Procedimento geral', async () => {
+      kitOff(); sim.jump('run'); sim.cam('hero');
+      await say('Olá! Neste módulo vou demonstrar como se realiza a avaliação de cada agente: sulfeto de hidrogênio, monóxido de carbono, oxigênio e gases inflamáveis. Em cada ambiente o aparelho está no tripé, ligado e já aprovado no teste de resposta do dia.');
+      await say('O procedimento é sempre o mesmo. Primeiro, confirmar o bump test e ligar o aparelho em ar limpo, para o auto-zero. Depois, levar o aparelho ou a sonda até o ponto de medição, considerando onde o gás se acumula. Em seguida, aguardar o tempo de resposta dos sensores, de quinze a vinte segundos, mais o atraso da mangueira. Então, ler e registrar o valor, comparar com os limites e tomar a decisão: liberar, restringir ou evacuar.');
+    }],
+    ['Sulfeto de hidrogênio', async () => {
+      await scen('vazamento-h2s');
+      await say('Primeiro agente: o sulfeto de hidrogênio, H₂S, numa casa de bombas de esgoto. Ele é mais pesado que o ar e se acumula junto ao piso, em canaletas e poços. Por isso o ponto de medição fica baixo, próximo da fonte, como esta válvula com vazamento.');
+      await wait(6000);
+      await say(`O aparelho está lendo ${n0(R().H2S)} ppm de H₂S. Compare com os limites: o alarme baixo é dez ppm, o alto quinze, e o limite de tolerância da NR-15 é oito ppm para a jornada. Acima do alarme alto, a decisão é evacuar e ventilar. Lembre-se: o H₂S paralisa o olfato, então o cheiro de ovo podre desaparece justamente quando a concentração fica perigosa.`, 2000);
+      await say('Para a exposição ao longo do turno, o aparelho calcula o TWA, a média de oito horas, e o STEL, a média de quinze minutos. Dois toques no botão mostram esses valores e o pico registrado.');
+    }],
+    ['Monóxido de carbono', async () => {
+      await scen('co-motor');
+      await say('Segundo agente: o monóxido de carbono, CO, num galpão fechado com motor a combustão funcionando. O CO tem densidade parecida com a do ar e se mistura no ambiente; mede-se na zona respiratória do trabalhador, entre um e um metro e meio de altura, que é exatamente a altura deste tripé.');
+      await wait(8000);
+      await say(`Leitura atual: ${n0(R().CO)} ppm de CO. O alarme baixo é trinta e cinco ppm e o alto duzentos. O limite de tolerância da NR-15 é trinta e nove ppm. Como a concentração sobe com o tempo, a avaliação deve ser contínua: acompanhe o gráfico de tendência e o TWA. A medida de controle é desligar a fonte e ventilar.`, 2000);
+    }],
+    ['Deficiência de oxigênio', async () => {
+      await scen('deficiencia-o2');
+      await say('Terceiro agente: a falta de oxigênio, numa sala de nitrogênio. O nitrogênio vazando desloca o ar e não tem cheiro nem cor. O oxigênio deve ser sempre o primeiro valor a avaliar, porque sem oxigênio suficiente o sensor de inflamáveis também perde a precisão.');
+      await wait(7000);
+      await say(`O aparelho mostra ${n1(R().O2)} por cento de oxigênio. O ar normal tem vinte vírgula nove. Abaixo de dezenove e meio por cento a atmosfera é deficiente, conforme a NR-33, e o aparelho alarma. Decisão: não entrar, ventilar com ar e, se for indispensável entrar, usar equipamento de respiração autônoma com supervisão.`, 2000);
+    }],
+    ['Gases inflamáveis', async () => {
+      await scen('explosiva');
+      await say('Quarto agente: os gases e vapores inflamáveis, num depósito de solventes. O sensor catalítico mede em porcentagem do limite inferior de explosividade, o LIE ou LEL. Cem por cento do LIE significa que a mistura já pode explodir.');
+      await wait(7000);
+      await say(`Leitura: ${n0(R().LEL)} por cento do LIE. A NR-33 considera perigosa a atmosfera acima de dez por cento do LIE, que também é o alarme baixo do aparelho; o alarme alto é vinte por cento. Decisão: eliminar fontes de ignição, ventilar e não realizar trabalhos a quente. Se o visor mostrar O L, a concentração passou da escala: saia imediatamente.`, 2000);
+    }],
+    ['Excesso de oxigênio', async () => {
+      await scen('enriquecimento-o2');
+      await say('O oxigênio também é avaliado para cima: numa central de oxigênio, um vazamento enriquece a atmosfera. Acima de vinte e três por cento, segundo a NR-33, e de vinte e três e meio pelo alarme do aparelho, qualquer material queima com muito mais facilidade.');
+      await wait(6000);
+      await say(`O aparelho indica ${n1(R().O2)} por cento de oxigênio. Decisão: fechar a fonte, ventilar, proibir chamas e cigarros e manter óleo e graxa longe das conexões.`, 1500);
+    }],
+    ['Espaço confinado', async () => {
+      await scen('confinado');
+      await say('Por fim, o espaço confinado, onde os agentes aparecem juntos e em camadas: metano no topo, H₂S e falta de oxigênio no fundo. A avaliação segue a NR-33: antes de qualquer entrada, com a sonda e a mangueira, de cima para baixo, nível por nível.');
+      await say('A ordem de leitura em cada nível é: primeiro o oxigênio, depois os inflamáveis e por último os tóxicos. Em cada nível, espere o atraso da mangueira, cerca de um segundo mais sete décimos por metro, somado a uma vez e meia o tempo de resposta do sensor mais lento. Registre a tabela de leituras: só com todos os níveis dentro dos limites a entrada pode ser liberada na permissão de entrada e trabalho.');
+      await say('O roteiro guiado Entrada em espaço confinado, na aba Roteiros, permite praticar exatamente esse procedimento, com o controle de profundidade da sonda.');
+    }],
+    ['Registro e conclusão', async () => {
+      sim.cam('hero'); tab('registro'); hl('.gx-right');
+      await say('Toda avaliação precisa ser registrada: data, hora, local, leituras de cada agente, alarmes e a decisão tomada. Na aba Registro o simulador guarda os eventos, e você pode exportar a planilha.');
+      hlOff(); tab('cenarios');
+      await say('Resumindo a avaliação de cada agente: oxigênio entre dezenove e meio e vinte e três por cento; inflamáveis abaixo de dez por cento do LIE; H₂S e CO abaixo dos limites de tolerância e sem alarmes. Fora disso, não há liberação. Fim da demonstração!');
+    }],
+  ];
+  const PROGRAMS = { explicacao: CH, demonstracao: CH2 };
 
   function ask(item, i, okSoFar) {
     const my = token;
@@ -303,16 +364,18 @@ export function createDemo(sim) {
     qBox.innerHTML = `<h3>Resultado da avaliação</h3><div class="big">${ok}/${QUIZ.length}</div><p>${pct}% · ${pass ? 'Aprovado ✔' : 'Revise e tente de novo'}</p><div class="sc">Critério: 7 acertos (70 %).</div>`;
   }
 
-  async function start(from = 0) {
+  let activeBtn = btn;
+  async function start(from = 0, prog = 'explicacao') {
     stop(); running = true; const my = ++token;
-    wrap.dataset.on = '1'; btn.dataset.on = '1';
+    const LIST = PROGRAMS[prog] || CH; activeBtn = prog === 'demonstracao' ? btn2 : btn;
+    wrap.dataset.on = '1'; activeBtn.dataset.on = '1';
     if (hasTTS) { speechSynthesis.cancel(); speechSynthesis.getVoices(); await wait(200); }
-    for (let i = Math.max(0, Math.min(CH.length - 1, from | 0)); i < CH.length; i++) {
+    for (let i = Math.max(0, Math.min(LIST.length - 1, from | 0)); i < LIST.length; i++) {
       if (my !== token) break;
-      chapter = CH[i][0];
-      btn.textContent = `■ Parar · ${i + 1}/${CH.length} ${chapter}`;
+      chapter = LIST[i][0];
+      activeBtn.textContent = `■ Parar · ${i + 1}/${LIST.length} ${chapter}`;
       skipFlag = false;
-      try { await CH[i][1](); }
+      try { await LIST[i][1](); }
       catch (e) { if (e.message !== 'skip') break; if (hasTTS) speechSynthesis.cancel(); }
       reset();
     }
@@ -322,10 +385,11 @@ export function createDemo(sim) {
     token++; running = false; skipFlag = false;
     if (hasTTS) speechSynthesis.cancel();
     reset(); qBox.style.display = 'none';
-    wrap.dataset.on = '0'; btn.dataset.on = '0'; btn.textContent = idleLabel;
+    wrap.dataset.on = '0'; btn.dataset.on = '0'; btn2.dataset.on = '0'; btn.textContent = idleLabel; btn2.textContent = idleLabel2;
   }
-  btn.onclick = () => (running ? stop() : start());
+  btn.onclick = () => (running ? stop() : start(0, 'explicacao'));
+  btn2.onclick = () => (running ? stop() : start(0, 'demonstracao'));
   // ?demo=1&cap=<n> começa no capítulo n (1 = apresentação)
   skip.onclick = () => { skipFlag = true; if (hasTTS) speechSynthesis.cancel(); };
-  return { start, stop, get running() { return running; }, get chapter() { return chapter; }, chapters: CH.map((c) => c[0]), quiz: QUIZ };
+  return { start, stop, get running() { return running; }, get chapter() { return chapter; }, chapters: CH.map((c) => c[0]), chapters2: CH2.map((c) => c[0]), quiz: QUIZ };
 }
