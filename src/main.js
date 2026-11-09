@@ -29,6 +29,8 @@ if (Q.get('mode')) stage.setMode(Q.get('mode'));
 const lcd = createLCD();
 const device = buildDevice({ lcdTexture: lcd.texture });
 scene.add(device.group);
+// o visor não recebe sombra projetada (a moldura escurecia a parte de cima da tela)
+device.group.traverse((o) => { if (o.isMesh && (o === device.lcdMesh || /lcd/i.test(o.name))) o.receiveShadow = false; });
 const kit = buildKit();
 scene.add(kit.group);
 // tripé: aparece nos ambientes por cenário (o estúdio/manual mantém o aparelho apoiado na mesa); o kit desce ao piso

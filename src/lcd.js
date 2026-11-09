@@ -33,16 +33,16 @@ function makeBackground(kind) {
     }
     const vy = g.createLinearGradient(0, 0, 0, H);
     vy.addColorStop(0, 'rgba(70,80,40,0.30)'); vy.addColorStop(0.2, 'rgba(70,80,40,0.06)'); vy.addColorStop(0.5, 'rgba(70,80,40,0)');
-    vy.addColorStop(0.82, 'rgba(70,80,40,0.06)'); vy.addColorStop(1, 'rgba(70,80,40,0.26)');
+    vy.addColorStop(0.82, 'rgba(70,80,40,0.06)'); vy.addColorStop(1, 'rgba(70,80,40,0.06)');
     g.fillStyle = vy; g.fillRect(0, 0, W, H);
   }
   // sombra interna da moldura (lábio do bezel projeta sombra no refletor) — bem sutil
   const edge = (x0, y0, x1, y1, a) => { const l = g.createLinearGradient(x0, y0, x1, y1);
     l.addColorStop(0, `rgba(40,48,40,${a})`); l.addColorStop(1, 'rgba(40,48,40,0)'); return l; };
-  g.fillStyle = edge(0, 0, 0, 46, 0.16); g.fillRect(0, 0, W, 46);
-  g.fillStyle = edge(0, 0, 30, 0, 0.10); g.fillRect(0, 0, 30, H);
-  g.fillStyle = edge(W, 0, W - 30, 0, 0.08); g.fillRect(W - 30, 0, 30, H);
-  g.fillStyle = edge(0, H, 0, H - 22, 0.07); g.fillRect(0, H - 22, W, 22);
+  g.fillStyle = edge(0, 0, 0, 46, 0); g.fillRect(0, 0, W, 46);
+  g.fillStyle = edge(0, 0, 30, 0, 0); g.fillRect(0, 0, 30, H);
+  g.fillStyle = edge(W, 0, W - 30, 0, 0); g.fillRect(W - 30, 0, 30, H);
+  g.fillStyle = edge(0, H, 0, H - 22, 0); g.fillRect(0, H - 22, W, 22);
   // manchas de baixa frequência (polarizador / difusor)
   const m = document.createElement('canvas'); m.width = 24; m.height = 22; const mg = m.getContext('2d');
   const md = mg.createImageData(24, 22); let seed = kind.length * 7919 + 13;
@@ -125,14 +125,13 @@ export function createLCD() {
     lctx.save(); lctx.globalCompositeOperation = 'source-atop'; lctx.fillStyle = inkGrad; lctx.fillRect(rx, ry, rw, rh); lctx.restore();
     target.save();
     target.beginPath(); target.rect(rx, ry, rw, rh); target.clip();
-    target.filter = 'blur(2.5px)'; target.globalAlpha = SHADOW_A;                   // sombra no refletor (paralaxe do vidro traseiro)
-    target.drawImage(layer, rx, ry, rw, rh, rx + 8, ry + 10, rw, rh);
+    if (SHADOW_A > 0) { target.filter = 'blur(2.5px)'; target.globalAlpha = SHADOW_A; target.drawImage(layer, rx, ry, rw, rh, rx + 8, ry + 10, rw, rh); }
     target.filter = 'blur(0.4px)'; target.globalAlpha = 0.94;                        // segmento
     target.drawImage(layer, rx, ry, rw, rh, rx, ry, rw, rh);
     target.restore();
   }
   const INK = 'rgb(14,17,15)';
-  const SHADOW_A = 0.27;
+  const SHADOW_A = 0; // sombra dos segmentos retirada a pedido do usuário
   const inkGrad = lctx.createLinearGradient(0, 0, W * 0.4, H);
   inkGrad.addColorStop(0, 'rgba(70,82,74,0.10)'); inkGrad.addColorStop(1, 'rgba(0,0,0,0)');
 
