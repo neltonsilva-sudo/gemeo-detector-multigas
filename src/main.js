@@ -121,7 +121,8 @@ const sim = {
     }
     fw.jump(s);
   },
-  setGas(g) { world.setScenario('manual'); Object.assign(world.manual, g); },
+  // muda só a atmosfera (gases manuais) sem trocar o ambiente 3D — a demonstração usa isto
+  setGas(g) { world.setScenario('manual'); Object.assign(world.manual, g); lastScenery = 'manual'; },
   cam: setCam,
   coverInlet(on) { inletCovered = !!on; },
   capture() { stage.render(0); return renderer.domElement.toDataURL('image/png'); },
